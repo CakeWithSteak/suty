@@ -12,6 +12,9 @@ open import Relation.Binary.PropositionalEquality using (_≡_; _≢_)
 open import Relation.Binary using (REL)
 open import Data.Bool
 open import Function.Base using (case_of_)
+open import Relation.Nullary.Negation using (¬_)
+open import Function.Bundles using (_⇔_)
+open import Data.Product
 
 TypingContext : Set
 TypingContext = Context Type
@@ -22,6 +25,18 @@ data _↦_∈*_ (x : name) (t : Type) : TypingContext → Set where
   thereUnordered : ∀ {y u} {Γ : TypingContext} {_ : False (ordQualified? t)} → x ↦ t ∈* Γ → x ↦ t ∈* (Γ , y ↦ u)
   thereOrdered : ∀ {y u} {Γ : TypingContext} {_ : True (ordQualified? t)} → False (ordQualified? u) → x ↦ t ∈* Γ → x ↦ t ∈* (Γ , y ↦ u)
 
+_↦_∉*_ : name → Type → TypingContext → Set
+x ↦ t ∉* Γ  = ¬ ( x ↦ t ∈* Γ )
+
 data _÷_≡_ : TypingContext → TypingContext → TypingContext → Set where
   divEmpty : (Γ : TypingContext) → Γ ÷ ∅ ≡ Γ
- -- divUn : ∀ {Γ₁ Γ₂ Γ₃} → Γ₁ ÷ Γ₂ ≡ Γ₃ → 
+  
+  -- When dividing by an unrestricted var, we assume that the returned context (Γ₁) still contains it (otherwise code removed it in error), but we want to remove it to uphold scoping rules, while also keeping all other bindings intact
+  divUn : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄} →                                  Γ₁ ÷ Γ₂ ≡ Γ₃ → -- Recurse, using Γ₃ as an intermediate value
+                                                                           qualifierOf t ≡ un → -- Rule applies only for unrestricted vars
+                                                                                      x ↦ t ∈* Γ₃ → -- Binding should not have disappeared
+   (∀ {y u} → (y ↦ u ∈* Γ₄ ⇔ ((x ≢ y) × (y ↦ u ∈* Γ₃))))  → -- Result context Γ₄ must contain all bindings from Γ₃ except x, but no other bindings todo currently assumes all names are disctinct: make that true or add the type here also todo maybe extract this and make it generic
+                                                                             Γ₁ ÷ (Γ₂ , x ↦ t) ≡ Γ₄
+
+  -- For lin/ord qualified types, we enforce usage by requiring that the returned context does not contain them
+  divMustuse : ∀ {x t Γ₁ Γ₂ Γ₃} → Γ₁ ÷ Γ₂ ≡ Γ₃ → qualifierOf t ≢ un →  x ↦ t ∉* Γ₃ → Γ₁ ÷ (Γ₂ , x ↦ t) ≡ Γ₃
