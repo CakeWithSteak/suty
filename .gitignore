@@ -1,0 +1,6 @@
+*.agdai
+
+# Output of release and bootstrap
+_build
+
+*~
