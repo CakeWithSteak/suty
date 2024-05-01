@@ -55,7 +55,6 @@ lin ⊑? ord = false because of f
 ord ⊑? un = true because of (trans ord⊑lin lin⊑un)
 ord ⊑? lin = true because of ord⊑lin
 ord ⊑? ord = true because of refl
-    
 
 qualifierPreorder : Preorder 0ℓ 0ℓ 0ℓ
 qualifierPreorder = record {

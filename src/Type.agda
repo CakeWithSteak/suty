@@ -2,6 +2,7 @@ module Type where
 
 open import Qualifier
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_)
+open import Relation.Nullary.Decidable using  (Dec)
 
 -- Qualifier is folded into Type because having ord functions is forbidden. If that can be relaxed, this definition can be made more elegant
 data Type : Set where
@@ -15,3 +16,6 @@ qualifierOf ` q `Bool = q
 qualifierOf ` q `Unit = q
 qualifierOf (` q ` _ `× _) = q
 qualifierOf (` q ` _ ⇒ _) = q
+
+ordQualified? : (t : Type) → Dec (qualifierOf t ≡ ord)
+ordQualified? t = qualifierOf t ≟ ord
