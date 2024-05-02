@@ -1,4 +1,4 @@
-open import Relation.Binary.Definitions
+open import Relation.Binary.Definitions using (DecidableEquality)
 open import Level
 
 module Util.Context {name : Set} {_≟ₙ_ : DecidableEquality name} where
@@ -6,8 +6,8 @@ module Util.Context {name : Set} {_≟ₙ_ : DecidableEquality name} where
 open import Relation.Binary.PropositionalEquality
 open import Data.Unit using (⊤; tt)
 open import Relation.Nullary using (⌊_⌋; _×-dec_; yes; no; does; _because_; of; ¬_)
-open import Relation.Unary using (Pred)
-open import Relation.Binary using (REL; IsDecEquivalence)
+open import Relation.Unary using (Pred) renaming (Decidable to Decidable₁)
+open import Relation.Binary using (REL; IsDecEquivalence) renaming (Decidable to Decidable₂)
 open import Data.Bool using (true; false; if_then_else_)
 open import Function.Base using (case_of_)
 open import Data.Product
@@ -40,6 +40,12 @@ _∈_ x Γ = x ↦ tt ∈ Γ
 data All (R : REL name V 0ℓ) : Pred (Context V) 0ℓ where
   ∅ : All R ∅
   _,_ : ∀ {x v Γ} (rest : All R Γ) (this : R x v) → All R (Γ , x ↦ v)
+
+all? : {R : REL name V 0ℓ} → Decidable₂ R  → Decidable₁ (All R)
+all? r ∅ = yes ∅
+all? r (Γ , x ↦ v) with all? r Γ
+... | no ¬a = no λ { (prev , this) → ¬a prev}
+... | yes prev = case r x v of λ { (no ¬a) → no (λ {(prev , this) → ¬a this}) ; (yes this) → yes (prev , this)}
 
 -- Type witnessing a deleteBinding
 infix 3  _-_↦_≡_
