@@ -1,15 +1,18 @@
-open import Relation.Binary.Bundles
+open import Relation.Binary.Definitions
 open import Level
 
-module Util.Context {Key : DecSetoid 0ℓ 0ℓ} where
+module Util.Context {name : Set} {_≟ₙ_ : DecidableEquality name} where
 
-open DecSetoid Key renaming (Carrier to name) public
 open import Relation.Binary.PropositionalEquality
 open import Data.Unit using (⊤; tt)
-open import Relation.Nullary using (⌊_⌋; _×-dec_; yes; no)
+open import Relation.Nullary using (⌊_⌋; _×-dec_; yes; no; does; _because_; of; ¬_)
 open import Relation.Unary using (Pred)
-open import Relation.Binary using (REL)
+open import Relation.Binary using (REL; IsDecEquivalence)
 open import Data.Bool using (true; false; if_then_else_)
+open import Function.Base using (case_of_)
+open import Data.Product
+open import Data.Sum
+open import Data.Empty
 
 private
   variable
@@ -38,17 +41,16 @@ data All (R : REL name V 0ℓ) : Pred (Context V) 0ℓ where
   ∅ : All R ∅
   _,_ : ∀ {x v Γ} (rest : All R Γ) (this : R x v) → All R (Γ , x ↦ v)
 
-deleteBinding : Context V → name → Context V
-deleteBinding ∅ x = ∅
-deleteBinding (Γ , y ↦ v) x with x ≟ y
-... | no _  = (deleteBinding Γ x) , y ↦ v
-... | yes _ = Γ
+-- Type witnessing a deleteBinding
+infix 3  _-_↦_≡_
+data _-_↦_≡_  {V : Set} :  Context V → name →  V → Context V → Set where
+  deleteHere : (Γ : Context V) (x : name) (v : V)  → ((Γ , x ↦ v) - x ↦ v ≡ Γ)
+  deleteThere : ∀ {y u} (Γ : Context V) (x : name) (v : V) (Γ' : Context V) → ¬ (y ≡ x  × v ≡ u) → Γ - x ↦ v ≡ Γ' → (Γ , y ↦ u) - x ↦ v ≡ (Γ' , y ↦ u)
 
-deleteBinding-preserves-all : ∀ {Γ x} {R : REL name V 0ℓ} → All R Γ  → All R (deleteBinding Γ x)
-deleteBinding-preserves-all {Γ = ∅} {x} {R} ∅ = ∅
-deleteBinding-preserves-all {Γ = Γ₀ , y ↦ w} {x} {R} (before , this) with x ≟ y
-... | no _ = deleteBinding-preserves-all before , this
-... | yes a = before
-
+deleteBinding :  {V : Set} {_≟ᵥ_ : DecidableEquality V} (Γ : Context V) (x : name) (v : V) → x ↦ v ∈ Γ → Σ[ Γ' ∈ Context V ] (Γ - x ↦ v ≡ Γ')
+deleteBinding {V} {_≟ᵥ_} (Γ , y ↦ u) x v elem with y ≟ₙ x ×-dec u ≟ᵥ v
+... | no ¬eq = let (Γ' , d') = deleteBinding {V} {_≟ᵥ_} Γ x v (case elem of λ { here → ⊥-elim (¬eq (refl , refl)) ; (there x) → x}) in (Γ' , y ↦ u) , deleteThere Γ x v Γ' (λ { (refl , refl) → ¬eq (refl , refl)}) d'
+... | yes (refl , refl) = Γ , deleteHere Γ y u
+  
 Scope : Set
 Scope = Context ⊤
