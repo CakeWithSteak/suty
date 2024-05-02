@@ -1,8 +1,9 @@
-open import Relation.Binary.Definitions
+open import Relation.Binary.Bundles
+open import Level
 
-module Term {name : Set} {_≟ₙ_ : DecidableEquality name} where
+module Term {Key : DecSetoid 0ℓ 0ℓ} where
 
-open import Util.Context {name} {_≟ₙ_}
+open import Util.Context {Key = Key}
 open import Data.Bool using (Bool)
 open import Qualifier
 open import Type

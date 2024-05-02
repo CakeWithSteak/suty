@@ -1,11 +1,10 @@
-open import Relation.Binary.Bundles
-open import Level
+open import Relation.Binary.Definitions
 
-module TypingContext {Key : DecSetoid 0ℓ 0ℓ} where
+module TypingContext {name : Set} {_≟ₙ_ : DecidableEquality name} where
 
 open import Type
 open import Qualifier
-open import Util.Context {Key = Key}
+open import Util.Context {name} {_≟ₙ_}
 open import Data.Bool using (if_then_else_)
 open import Relation.Nullary.Decidable
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_)
@@ -27,6 +26,12 @@ data _↦_∈*_ (x : name) (t : Type) : TypingContext → Set where
 
 _↦_∉*_ : name → Type → TypingContext → Set
 x ↦ t ∉* Γ  = ¬ ( x ↦ t ∈* Γ )
+
+-- "Weakens" ∈* into ∈
+∈*⇒∈ : ∀ {x t Γ} → x ↦ t ∈* Γ → x ↦ t ∈ Γ
+∈*⇒∈ here = here
+∈*⇒∈ (thereUnordered p) = there (∈*⇒∈ p)
+∈*⇒∈ (thereOrdered _ p) = there (∈*⇒∈ p)
 
 data _÷_≡_ : TypingContext → TypingContext → TypingContext → Set where
   divEmpty : (Γ : TypingContext) → Γ ÷ ∅ ≡ Γ
