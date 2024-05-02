@@ -9,7 +9,7 @@ data Type : Set where
   `_`Bool : Qualifier → Type
   `_`Unit : Qualifier → Type
   `_`_`×_ : Qualifier → Type → Type → Type
-  `_`_⇒_ : (q : Qualifier) → {q ≢ ord} → Type → Type → Type
+  `_`_⇒_ : (q : Qualifier) → Type → Type → {q ≢ ord}  → Type
 
 qualifierOf : Type → Qualifier
 qualifierOf ` q `Bool = q
@@ -19,3 +19,6 @@ qualifierOf (` q ` _ ⇒ _) = q
 
 ordQualified? : (t : Type) → Dec (qualifierOf t ≡ ord)
 ordQualified? t = qualifierOf t ≟ ord
+
+data _⟨_⟩ (q : Qualifier) (ty : Type) : Set where
+  qualifies : q ⊑ qualifierOf ty → q ⟨ ty ⟩ 
