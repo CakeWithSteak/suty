@@ -5,7 +5,7 @@ module Util.Context {name : Set} {_≟ₙ_ : DecidableEquality name} where
 
 open import Relation.Binary.PropositionalEquality
 open import Data.Unit using (⊤; tt)
-open import Relation.Nullary using (⌊_⌋; _×-dec_; yes; no; does; _because_; of; ¬_)
+open import Relation.Nullary using (⌊_⌋; _×-dec_; yes; no; does; _because_; of; ¬_; Dec)
 open import Relation.Unary using (Pred) renaming (Decidable to Decidable₁)
 open import Relation.Binary using (REL; IsDecEquivalence) renaming (Decidable to Decidable₂)
 open import Data.Bool using (true; false; if_then_else_)
@@ -36,6 +36,14 @@ data _↦_∈_  (x : name) (v : V) : Context V → Set  where
 
 _∈_ :  name → Context ⊤ → Set
 _∈_ x Γ = x ↦ tt ∈ Γ
+
+_↦_∈?_ : (x : name) (v : V) (Γ : Context V) {_≟ᵥ_ : DecidableEquality V} → Dec (x ↦ v ∈ Γ)
+x ↦ v ∈? ∅ = no (λ ())
+(x ↦ v ∈? (Γ , y ↦ u)) {_≟ᵥ_} with x ≟ₙ y ×-dec v ≟ᵥ u | (x ↦ v ∈? Γ) {_≟ᵥ_}
+... | yes (refl , refl)  | _ = yes here
+... | no ¬eq | no ¬elem = no λ { here → ¬eq (refl , refl) ; (there actually-elem) → ¬elem actually-elem}
+... | no ¬eq | yes elem  = yes (there elem)
+
 
 data All (R : REL name V 0ℓ) : Pred (Context V) 0ℓ where
   ∅ : All R ∅

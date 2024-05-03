@@ -29,6 +29,8 @@ data _↦_∈*_ (x : name) (t : Type) : TypingContext → Set where
 _↦_∉*_ : name → Type → TypingContext → Set
 x ↦ t ∉* Γ  = ¬ ( x ↦ t ∈* Γ )
 
+--_↦_∈*?_ : (x : name) (ty : Type) (Γ : TypingContext) → Dec (x ↦ ty ∈* Γ)
+
 -- "Weakens" ∈* into ∈
 ∈*⇒∈ : ∀ {x t Γ} → x ↦ t ∈* Γ → x ↦ t ∈ Γ
 ∈*⇒∈ here = here
