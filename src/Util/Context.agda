@@ -5,7 +5,7 @@ module Util.Context {name : Set} {_≟ₙ_ : DecidableEquality name} where
 
 open import Relation.Binary.PropositionalEquality
 open import Data.Unit using (⊤; tt)
-open import Relation.Nullary using (⌊_⌋; _×-dec_; yes; no; does; _because_; of; ¬_; Dec)
+open import Relation.Nullary using (⌊_⌋; _×-dec_; yes; no; does; _because_; of; ¬_; Dec; contradiction)
 open import Relation.Unary using (Pred) renaming (Decidable to Decidable₁)
 open import Relation.Binary using (REL; IsDecEquivalence) renaming (Decidable to Decidable₂)
 open import Data.Bool using (true; false; if_then_else_)
@@ -60,6 +60,12 @@ infix 3  _-_↦_≡_
 data _-_↦_≡_  {V : Set} :  Context V → name →  V → Context V → Set where
   deleteHere : (Γ : Context V) (x : name) (v : V)  → ((Γ , x ↦ v) - x ↦ v ≡ Γ)
   deleteThere : ∀ {y u} (Γ : Context V) (x : name) (v : V) (Γ' : Context V) → ¬ (y ≡ x  × v ≡ u) → Γ - x ↦ v ≡ Γ' → (Γ , y ↦ u) - x ↦ v ≡ (Γ' , y ↦ u)
+
+deleteBinding-unique : ∀ {x V Γ Γ₁ Γ₂} {v : V} → Γ - x ↦ v ≡ Γ₁ → Γ - x ↦ v ≡ Γ₂ → Γ₁ ≡ Γ₂
+deleteBinding-unique (deleteHere _ _ _) (deleteHere _ _ _) = refl
+deleteBinding-unique (deleteHere _ _ _) (deleteThere _ _ _ _ noteq _) = contradiction (refl , refl) noteq
+deleteBinding-unique (deleteThere _ _ _ _ noteq _) (deleteHere _ _ _) = contradiction (refl , refl) noteq
+deleteBinding-unique (deleteThere _ _ _ _ _ sub₁) (deleteThere _ _ _ _ _ sub₂) = case deleteBinding-unique sub₁ sub₂ of λ {refl → refl}
 
 deleteBinding :  {V : Set} {_≟ᵥ_ : DecidableEquality V} (Γ : Context V) (x : name) (v : V) → x ↦ v ∈ Γ → Σ[ Γ' ∈ Context V ] (Γ - x ↦ v ≡ Γ')
 deleteBinding {V} {_≟ᵥ_} (Γ , y ↦ u) x v elem with y ≟ₙ x ×-dec u ≟ᵥ v
