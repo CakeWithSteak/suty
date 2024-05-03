@@ -29,9 +29,9 @@ ord-bottom refl = ≡-refl
 ord-bottom (trans ordb bq) with ord-bottom bq
 ...     | ≡-refl = ord-bottom ordb
 
-infix 4 _≟_
-_≟_ : (a b : Qualifier) → Dec (a ≡ b)
-x ≟ y with x | y
+infix 4 _≟q_
+_≟q_ : DecidableEquality Qualifier 
+x ≟q y with x | y
 ...   | un | un = true because of ≡-refl
 ...   | ord | ord = true because of ≡-refl
 ...   | lin | lin = true because of ≡-refl
