@@ -1,9 +1,11 @@
 module Type where
 
 open import Qualifier hiding (refl)
+open import Relation.Nullary.Negation using (contradiction)
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl)
-open import Relation.Nullary.Decidable using  (Dec; yes; no)
-open import Relation.Binary.Definitions using (DecidableEquality)
+open import Relation.Nullary.Decidable using  (Dec; yes; no; False)
+open import Relation.Binary using (DecidableEquality; Decidable; REL)
+open import Level
 
 -- Qualifier is folded into Type because having ord functions is forbidden. If that can be relaxed, this definition can be made more elegant
 data Type : Set where
@@ -57,5 +59,16 @@ _≟ₜ_ : DecidableEquality Type
 (` q ` x ⇒ x₁) ≟ₜ (` x₂ ` y `× y₁) = no (λ ())
 
 
-data _⟨_⟩ (q : Qualifier) (ty : Type) : Set where
-  qualifies : q ⊑ qualifierOf ty → q ⟨ ty ⟩ 
+_⟨_⟩ : REL Qualifier Type 0ℓ
+q ⟨ ty ⟩ = (q ⊑ qualifierOf ty)
+
+canContain? : Decidable _⟨_⟩
+canContain? q ty = (q ⊑? qualifierOf ty)
+
+--data _⟨_⟩ (q : Qualifier) (ty : Type) : Set where
+--  qualifies : q ⊑ qualifierOf ty → q ⟨ ty ⟩
+
+--canContain? : Decidable _⟨_⟩
+--canContain? q ty with q ⊑? qualifierOf ty
+--... | no q⋢ = no λ { (qualifies q⊑) → contradiction q⊑ q⋢}
+--... | yes p = yes (qualifies p)
