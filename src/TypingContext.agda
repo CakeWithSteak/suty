@@ -23,26 +23,52 @@ TypingContext = Context Type
 -- Ordered inclusion in the typing context: same as normal inclusion for non-ordered types, but requires that the type be at the head of the context for ordered types
 data _↦_∈*_ (x : name) (t : Type) : TypingContext → Set where
   here : {Γ : TypingContext} → x ↦ t ∈* (Γ , x ↦ t)
-  thereUnordered : ∀ {y u} {Γ : TypingContext} → False (ordQualified? t) → x ↦ t ∈* Γ → x ↦ t ∈* (Γ , y ↦ u)
-  thereOrdered : ∀ {y u} {Γ : TypingContext} → True (ordQualified? t) → False (ordQualified? u) → x ↦ t ∈* Γ → x ↦ t ∈* (Γ , y ↦ u)
+  thereUnordered : ∀ {y u} {Γ : TypingContext} → x ≢ y → False (ordQualified? t) → x ↦ t ∈* Γ → x ↦ t ∈* (Γ , y ↦ u)
+  thereOrdered : ∀ {y u} {Γ : TypingContext} → x ≢ y → True (ordQualified? t) → False (ordQualified? u) → x ↦ t ∈* Γ → x ↦ t ∈* (Γ , y ↦ u)
 
 _↦_∉*_ : name → Type → TypingContext → Set
 x ↦ t ∉* Γ  = ¬ ( x ↦ t ∈* Γ )
 
 _↦_∈*?_ : (x : name) (ty : Type) (Γ : TypingContext) → Dec (x ↦ ty ∈* Γ)
 x ↦ ty ∈*? ∅ = no (λ ())
-x ↦ ty ∈*? (Γ , y ↦ u) with x ≟ₙ y ×-dec ty ≟ₜ u | x ↦ ty ∈*? Γ | ordQualified? ty | ordQualified? u 
-... | yes (refl , refl) | _ | _ | _ = yes here
-... | no neq | no not-elem | _ | _  = no λ { here → contradiction (refl , refl) neq ; (thereUnordered _ elem) → contradiction elem not-elem; (thereOrdered _ _ elem) → contradiction elem not-elem}
-... | no neq | yes elem | no ty-not-ord | _ = yes (thereUnordered (fromWitnessFalse ty-not-ord) elem)
-... | no neq | yes elem | yes ty-ord | no u-not-ord = yes (thereOrdered (fromWitness ty-ord) (fromWitnessFalse u-not-ord) elem)
-... | no neq | yes elem | yes ty-ord | yes u-ord = no λ { here → contradiction (refl , refl) neq ; (thereUnordered ty-not-ord _) → contradiction ty-ord (toWitnessFalse ty-not-ord) ; (thereOrdered _ u-not-ord _) → contradiction u-ord (toWitnessFalse u-not-ord)}
+x ↦ ty ∈*? (Γ , y ↦ u) with x ≟ₙ y | ty ≟ₜ u | x ↦ ty ∈*? Γ | ordQualified? ty | ordQualified? u 
+... | yes refl | yes refl | _ | _ | _ = yes here
+... | yes refl | no ty≢u | _ | _ | _ = no λ { here → contradiction refl ty≢u ; (thereUnordered x≢y _ _) → contradiction refl x≢y ; (thereOrdered x≢y _ _ _) → contradiction refl x≢y}
+... | no x≢y  | _ | no not-elem | _ | _  = no λ { here → contradiction refl x≢y ; (thereUnordered _ _ elem) → contradiction elem not-elem; (thereOrdered _ _ _ elem) → contradiction elem not-elem}
+... | no x≢y | _  | yes elem | no ty-not-ord | _ = yes (thereUnordered x≢y (fromWitnessFalse ty-not-ord) elem)
+... | no x≢y | _  | yes elem | yes ty-ord | no u-not-ord = yes (thereOrdered x≢y (fromWitness ty-ord) (fromWitnessFalse u-not-ord) elem)
+... | no x≢y | _  | yes elem | yes ty-ord | yes u-ord = no λ { here → contradiction refl x≢y ; (thereUnordered _ ty-not-ord _) → contradiction ty-ord (toWitnessFalse ty-not-ord) ; (thereOrdered _ _ u-not-ord _) → contradiction u-ord (toWitnessFalse u-not-ord)}
+
+∈*-unique : ∀ {x Γ T U} → x ↦ T ∈* Γ → x ↦ U ∈* Γ → T ≡ U
+∈*-unique here here = refl
+∈*-unique here (thereUnordered x≢x _ _) = contradiction refl x≢x
+∈*-unique here (thereOrdered x≢x _ _ _) = contradiction refl x≢x
+∈*-unique (thereUnordered x≢x _ _) here = contradiction refl x≢x
+∈*-unique (thereUnordered x x₁ a) (thereUnordered x₂ x₃ b) = ∈*-unique a b
+∈*-unique (thereUnordered x x₁ a) (thereOrdered x₂ x₃ x₄ b) = ∈*-unique a b
+∈*-unique (thereOrdered x≢x _ _ _) here = contradiction refl x≢x
+∈*-unique (thereOrdered x x₁ x₂ a) (thereUnordered x₃ x₄ b) = ∈*-unique a b
+∈*-unique (thereOrdered x x₁ x₂ a) (thereOrdered x₃ x₄ x₅ b) = ∈*-unique a b
+
+typeLookup : (Γ : TypingContext) (x : name) → Dec (Σ[ ty ∈ Type ] x ↦ ty ∈* Γ)
+typeLookup ∅ x = no λ { (ty , ())}
+typeLookup (Γ , y ↦ u) x with x ≟ₙ y
+... | yes refl  = yes (u , here)
+... | no x≢y with typeLookup Γ x
+...   | no nosub = no (λ { (ty , here) → contradiction refl x≢y ; (ty , thereUnordered _ _ sub) → contradiction (ty , sub) nosub ; (ty , thereOrdered _ _ _ sub) → contradiction (ty , sub) nosub})
+...   | yes (ty , sub) with ordQualified? ty | ordQualified? u
+...     | yes ty-ord | no u-not-ord = yes (ty , (thereOrdered x≢y (fromWitness ty-ord) (fromWitnessFalse u-not-ord) sub))
+...     | yes ty-ord | yes u-ord = no λ {
+          (ty' , here) → contradiction refl x≢y ;
+          (ty' , thereUnordered _ ty'-not-ord sub') → case ∈*-unique sub sub' of λ {refl → contradiction ty-ord (toWitnessFalse ty'-not-ord)} ;
+          (ty' , thereOrdered _ _  u-not-ord _) → contradiction u-ord (toWitnessFalse u-not-ord)}
+...    | no ty-not-ord | _ = yes (ty , (thereUnordered x≢y (fromWitnessFalse ty-not-ord) sub))
 
 -- "Weakens" ∈* into ∈
 ∈*⇒∈ : ∀ {x t Γ} → x ↦ t ∈* Γ → x ↦ t ∈ Γ
 ∈*⇒∈ here = here
-∈*⇒∈ (thereUnordered _ p) = there (∈*⇒∈ p)
-∈*⇒∈ (thereOrdered _ _ p) = there (∈*⇒∈ p)
+∈*⇒∈ (thereUnordered _ _ p) = there (∈*⇒∈ p)
+∈*⇒∈ (thereOrdered _ _ _ p) = there (∈*⇒∈ p)
 
 data _÷_≡_ : TypingContext → TypingContext → TypingContext → Set where
   divEmpty : (Γ : TypingContext) → Γ ÷ ∅ ≡ Γ

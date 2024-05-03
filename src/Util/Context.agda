@@ -44,6 +44,14 @@ x ↦ v ∈? ∅ = no (λ ())
 ... | no ¬eq | no ¬elem = no λ { here → ¬eq (refl , refl) ; (there actually-elem) → ¬elem actually-elem}
 ... | no ¬eq | yes elem  = yes (there elem)
 
+lookup : (Γ : Context V) (x : name) → Dec (Σ[ v ∈ V ] x ↦ v ∈ Γ)
+lookup ∅ x = no (λ { ()})
+lookup (Γ , y ↦ u) x with x ≟ₙ y
+... | yes refl = yes (u , here)
+... | no x≢y with lookup Γ x
+...   | no nosub = no (λ { (v , here) → contradiction refl x≢y ; (v , there p) → contradiction (v , p) nosub})
+... | yes (v , p) = yes (v , (there p))
+
 
 data All (R : REL name V 0ℓ) : Pred (Context V) 0ℓ where
   ∅ : All R ∅
@@ -71,6 +79,6 @@ deleteBinding :  {V : Set} {_≟ᵥ_ : DecidableEquality V} (Γ : Context V) (x 
 deleteBinding {V} {_≟ᵥ_} (Γ , y ↦ u) x v elem with y ≟ₙ x ×-dec u ≟ᵥ v
 ... | no ¬eq = let (Γ' , d') = deleteBinding {V} {_≟ᵥ_} Γ x v (case elem of λ { here → ⊥-elim (¬eq (refl , refl)) ; (there x) → x}) in (Γ' , y ↦ u) , deleteThere Γ x v Γ' (λ { (refl , refl) → ¬eq (refl , refl)}) d'
 ... | yes (refl , refl) = Γ , deleteHere Γ y u
-  
+
 Scope : Set
 Scope = Context ⊤
