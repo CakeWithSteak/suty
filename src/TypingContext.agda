@@ -48,32 +48,41 @@ data _÷_≡_ : TypingContext → TypingContext → TypingContext → Set where
   divEmpty : (Γ : TypingContext) → Γ ÷ ∅ ≡ Γ
   
   -- When dividing by an unrestricted var, we assume that the returned context (Γ₁) still contains it (otherwise code removed it in error), but we want to remove it to uphold scoping rules, while also keeping all other bindings intact
-  divUn : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄} →                                  Γ₁ ÷ (Γ₂ , x ↦ t)  ≡ Γ₃ → -- Recurse, using Γ₃ as an intermediate value
+  divUn : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄} →                                  Γ₁ ÷ Γ₂  ≡ Γ₃ → -- Recurse, using Γ₃ as an intermediate value
                                                                            qualifierOf t ≡ un → -- Rule applies only for unrestricted vars
                                                                                       x ↦ t ∈* Γ₃ → -- Binding should not have disappeared
                                                                              Γ₃ - x ↦ t ≡ Γ₄  → -- Result context Γ₄ must be Γ₃ but with the x ↦ t binding deleted
                                                                              Γ₁ ÷ (Γ₂ , x ↦ t) ≡ Γ₄
 
   -- For lin/ord qualified types, we enforce usage by requiring that the returned context does not contain them
-  divMustuse : ∀ {x t Γ₁ Γ₂ Γ₃} → Γ₁ ÷ (Γ₂ , x ↦ t) ≡ Γ₃ → qualifierOf t ≢ un →  x ↦ t ∉* Γ₃ → Γ₁ ÷ (Γ₂ , x ↦ t) ≡ Γ₃
+  divMustuse : ∀ {x t Γ₁ Γ₂ Γ₃} → Γ₁ ÷ Γ₂ ≡ Γ₃ → qualifierOf t ≢ un →  x ↦ t ∉* Γ₃ → Γ₁ ÷ (Γ₂ , x ↦ t) ≡ Γ₃
 
 ÷-unique : ∀ {Γ₁ Γ₂ Γ₃ Γ₄} → Γ₁ ÷ Γ₂ ≡ Γ₃ → Γ₁ ÷ Γ₂ ≡ Γ₄ → Γ₃ ≡ Γ₄
 ÷-unique (divEmpty _) (divEmpty _) = refl
-÷-unique (divUn {x} {t} {Γ₃ = Γ-sub₁} sub₁ t-un₁ x-in-sub₁ sub-gives-res₁) (divUn {x} {t} {Γ₃ = Γ-sub₂} sub₂ t-un₂ x-in-sub₂ sub-gives-res₂) = case ÷-unique sub₁ sub₂ of λ { refl → deleteBinding-unique sub-gives-res₁ sub-gives-res₂ }
+÷-unique (divUn sub₁ _ _ sub-gives-res₁) (divUn  sub₂ _ _ sub-gives-res₂) = case ÷-unique sub₁ sub₂ of λ { refl → deleteBinding-unique sub-gives-res₁ sub-gives-res₂ }
 ÷-unique (divUn _ t-un _ _) (divMustuse _ t-not-un _) = contradiction t-un t-not-un
 ÷-unique (divMustuse _ t-not-un _) (divUn _ t-un _ _) = contradiction t-un t-not-un
 ÷-unique (divMustuse sub₁ _ _) (divMustuse sub₂ _ _) = ÷-unique sub₁ sub₂
 
---divideContext : (Γ₁ : TypingContext) (Γ₂ : TypingContext) → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ÷ Γ₂ ≡ Γ₃)
---divideContext Γ₁ ∅ = yes (Γ₁ , divEmpty Γ₁)
---divideContext Γ₁ (Γ₂ , x ↦ T) with divideContext Γ₁ Γ₂ | qualifierOf T ≟q un
---... | no nosub | _ = no λ { (Γ₄ , divUn {Γ₃ = Γ₃} sub _ _ _) → nosub (Γ₃ , sub) ; (Γ₃ , divMustuse sub _ _) → nosub (Γ₃ , sub)}
---... | yes (Γ₃ , sub) | yes T-is-un  = case x ↦ T ∈*? Γ₃ of λ {
- -- (no not-elem) → no λ { (Γ₄ , divUn  sub _ elem _) → {!!} ; (Γ₄ , divMustuse snd x x₁) → {!!}} ;
-  --(yes a) → {!!}
- -- }
---... | yes sub | no T-is-not-un = {!!}
-
+divideContext : (Γ₁ : TypingContext) (Γ₂ : TypingContext) → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ÷ Γ₂ ≡ Γ₃)
+divideContext Γ₁ ∅ = yes (Γ₁ , divEmpty Γ₁)
+divideContext Γ₁ (Γ₂ , x ↦ T) with divideContext Γ₁ Γ₂ | qualifierOf T ≟q un
+... | no nosub | _ = no λ { (Γ₄ , divUn {Γ₃ = Γ₃} sub _ _ _) → nosub (Γ₃ , sub) ; (Γ₃ , divMustuse sub _ _) → nosub (Γ₃ , sub)}
+... | yes (Γ₃ , sub) | yes T-is-un  = case x ↦ T ∈*? Γ₃ of λ {
+  (no not-elem) → no λ {
+    (Γ₄ , divUn  sub' _ elem _) → case ÷-unique sub sub' of λ {refl → contradiction elem not-elem} ;
+    (Γ₄ , divMustuse _ T-not-un _) → contradiction T-is-un T-not-un
+    } ;
+  (yes elem) → case deleteBinding {Type} {_≟ₜ_} Γ₃ x T (∈*⇒∈ elem) of λ { (Γ₄ , pdiff) → yes (Γ₄ , divUn sub T-is-un elem pdiff)}
+  }
+... | yes (Γ₃ , sub) | no T-not-un = case x ↦ T ∈*? Γ₃  of λ {
+  (no not-elem) → yes (Γ₃ , (divMustuse sub T-not-un not-elem));
+  (yes elem) → no λ {
+    (Γ₄ , divUn _ T-un _ _) → contradiction T-un T-not-un;
+    (Γ₄ , divMustuse sub' _ not-elem) → case ÷-unique sub sub' of λ {refl → contradiction elem not-elem}
+    }
+  }
+  
 _⟨⟨_⟩⟩ : REL Qualifier TypingContext 0ℓ
 q ⟨⟨ Γ ⟩⟩ = All (λ _ ty → q ⟨ ty ⟩) Γ
 
