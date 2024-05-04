@@ -80,5 +80,13 @@ deleteBinding {V} {_≟ᵥ_} (Γ , y ↦ u) x v elem with y ≟ₙ x ×-dec u �
 ... | no ¬eq = let (Γ' , d') = deleteBinding {V} {_≟ᵥ_} Γ x v (case elem of λ { here → ⊥-elim (¬eq (refl , refl)) ; (there x) → x}) in (Γ' , y ↦ u) , deleteThere Γ x v Γ' (λ { (refl , refl) → ¬eq (refl , refl)}) d'
 ... | yes (refl , refl) = Γ , deleteHere Γ y u
 
+_≟Γ_ : {V : Set} {_≟ᵥ_ : DecidableEquality V} → DecidableEquality (Context V)
+∅  ≟Γ ∅ = yes refl
+∅ ≟Γ (Ω , x ↦ x₁) = no (λ ())
+(Γ , x ↦ x₁) ≟Γ ∅ = no (λ ())
+_≟Γ_ {V} {_≟ᵥ_} (Γ , x ↦ v) (Ω , y ↦ u) with x ≟ₙ y ×-dec v ≟ᵥ u ×-dec _≟Γ_ {_≟ᵥ_ = _≟ᵥ_} Γ Ω
+... | no neq = no (λ {refl → neq (refl , (refl , refl))})
+... | yes (refl , (refl , refl)) = yes refl
+
 Scope : Set
 Scope = Context ⊤

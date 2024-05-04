@@ -7,6 +7,7 @@ open import Term {name} {_≟ₙ_}
 open import TypingContext {name} {_≟ₙ_}
 open import Qualifier hiding (trans)
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; trans; sym)
+open import Relation.Nullary.Negation using (contradiction; ¬_)
 open import Relation.Nullary.Decidable
 open import Data.Product
 open import Data.Bool using (Bool)
@@ -72,6 +73,10 @@ data _⊢_::_,_ (Γᵢ : TypingContext) : (t : Term α) (ty : Type) (Γₒ : Typ
              ------------------------------------------------------------------------
              → Γᵢ ⊢ (x · y) {p₁} {p₂} :: T₂ , Γ₃
 
+infix 2 _⊢_::⊥
+_⊢_::⊥ : TypingContext → Term α → Set
+_⊢_::⊥ Γ t =  ¬ Σ (Type × TypingContext) (λ (T , Γ') → (Γ ⊢ t :: T , Γ'))
+
 typing-unique : ∀ {Γ'₁ Γ'₂} → (Γ ⊢ t :: T₁ , Γ'₁)→ Γ ⊢ t :: T₂ , Γ'₂ → T₁ ≡ T₂ × Γ'₁ ≡ Γ'₂
 typing-unique (TUVar p elem₁ _) (TUVar .p  elem₂ _) with ∈*-unique elem₁ elem₂
 ... | refl = refl , refl
@@ -110,3 +115,6 @@ typing-unique (TAbs _ _ body₁ div₁) (TAbs _ _ body₂ div₂) with typing-un
 typing-unique (TApp _ _ _ fun₁ arg₁) (TApp _ _ _ fun₂ arg₂) with typing-unique fun₁ fun₂
 ... | (refl , refl) with typing-unique arg₁ arg₂
 ...   | (refl , refl) = refl , refl
+
+typing-contradiction : ∀ {a} {Whatever : Set a} → T₁ ≢ T₂ → Γ ⊢ t :: T₁ , Γ₂ → Γ ⊢ t :: T₂ , Γ₃ → Whatever
+typing-contradiction neq a b = contradiction (proj₁ (typing-unique a b)) neq

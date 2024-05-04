@@ -5,7 +5,9 @@ open import Relation.Nullary.Negation using (contradiction)
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl)
 open import Relation.Nullary.Decidable using  (Dec; yes; no; False)
 open import Relation.Binary using (DecidableEquality; Decidable; REL)
+open import Relation.Unary using (Pred) renaming (Decidable to Decidable₁)
 open import Level
+open import Data.Sum renaming (inj₁ to yes'; inj₂ to no') public
 
 -- Qualifier is folded into Type because having ord functions is forbidden. If that can be relaxed, this definition can be made more elegant
 data Type : Set where
@@ -14,6 +16,38 @@ data Type : Set where
   `_`_`×_ : Qualifier → Type → Type → Type
   `_`_⇒_ : (q : Qualifier) → Type → Type → {q ≢ ord}  → Type
 
+data IsBool : Pred Type 0ℓ where
+  isBool : {q : Qualifier} → IsBool ` q `Bool
+
+data IsUnit : Pred Type 0ℓ where
+  isUnit : {q : Qualifier} → IsUnit ` q `Unit
+
+data IsProduct : Pred Type 0ℓ where
+  isProduct : ∀ {q T U} → IsProduct (` q ` T `× U)
+
+data IsArrow : Pred Type 0ℓ where
+  isArrow : ∀ {q T U} {p : q ≢ ord} → IsArrow ((` q ` T ⇒ U) {p})
+
+bool? :  (ty : Type) → IsBool ty ⊎ (∀ {q : Qualifier} → ` q `Bool ≢ ty)
+bool? ` x `Bool = yes' isBool
+bool? ` x `Unit = no' (λ ())
+bool? (` x ` x₁ `× x₂) = no' (λ ())
+bool? (` q ` x ⇒ x₁) = no' (λ ())
+
+--unit? : (ty : Type) → IsUnit ty ⊎ (∀ {q : Qualifier} → ty ≢ ` q `Unit)
+
+
+product? : Decidable₁ IsProduct
+product? ` x `Bool = no (λ ())
+product? ` x `Unit = no (λ ())
+product? (` x ` x₁ `× x₂) = yes isProduct
+product? (` q ` x ⇒ x₁) = no (λ ())
+
+arrow? : Decidable₁ IsArrow
+arrow? ` x `Bool = no (λ ())
+arrow? ` x `Unit = no (λ ())
+arrow? (` x ` x₁ `× x₂) = no (λ ())
+arrow? (` q ` x ⇒ x₁) = yes isArrow
 
 qualifierOf : Type → Qualifier
 qualifierOf ` q `Bool = q
@@ -72,7 +106,6 @@ _≟ₜ_ : DecidableEquality Type
 (` q ` x ⇒ x₁) ≟ₜ ` x₂ `Bool = no (λ ())
 (` q ` x ⇒ x₁) ≟ₜ ` x₂ `Unit = no (λ ())
 (` q ` x ⇒ x₁) ≟ₜ (` x₂ ` y `× y₁) = no (λ ())
-
 
 _⟨_⟩ : REL Qualifier Type 0ℓ
 q ⟨ ty ⟩ = (q ⊑ qualifierOf ty)
