@@ -24,6 +24,21 @@ qualifierOf (` q ` _ ⇒ _) = q
 ordQualified? : (t : Type) → Dec (qualifierOf t ≡ ord)
 ordQualified? t = qualifierOf t ≟q ord
 
+-- todo somewhat hacky to avoid "I'm not sure" compiler errors
+qualifierCases : {A : Set} (ty : Type) → (qualifierOf ty ≡ un → A) → (qualifierOf ty ≡ lin → A) → (qualifierOf ty ≡ ord → A) → A
+qualifierCases ty@(` un `Bool) u l o = u refl
+qualifierCases ty@(` lin `Bool) u l o = l refl
+qualifierCases ty@(` ord `Bool) u l o = o refl
+qualifierCases ty@(` un `Unit) u l o = u refl
+qualifierCases ty@(` lin `Unit) u l o = l refl
+qualifierCases ty@(` ord `Unit) u l o = o refl
+qualifierCases ty@(` un ` _ `× _) u l o = u refl
+qualifierCases ty@(` lin ` _ `× _) u l o = l refl
+qualifierCases ty@(` ord ` _ `× _) u l o = o refl
+qualifierCases ty@(` un ` _ ⇒ _) u l o = u refl
+qualifierCases ty@(` lin ` _ ⇒ _) u l o = l refl
+qualifierCases ty@(` ord ` _ ⇒ _) u l o = o refl
+
 _≟ₜ_ : DecidableEquality Type
 ` q `Bool ≟ₜ ` w `Bool with q ≟q w
 ... | no q≢w = no (λ {refl → q≢w refl})

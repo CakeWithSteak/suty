@@ -5,12 +5,12 @@ open import Util.Context {name} {_≟ₙ_}
 open import Type
 open import Term {name} {_≟ₙ_}
 open import TypingContext {name} {_≟ₙ_}
-open import Qualifier
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_)
+open import Qualifier hiding (trans)
+open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; trans; sym)
 open import Relation.Nullary.Decidable
 open import Data.Product
 open import Data.Bool using (Bool)
-open import Function using (_∋_)
+open import Function using (_∋_; case_of_; _$_)
 
 private
   variable
@@ -19,7 +19,7 @@ private
     q : Qualifier
     t t₁ t₂ t₃ : Term α
     T T₁ T₂ : Type
-    Γ₂ Γ₃ Γ₄ : TypingContext
+    Γ Γ₂ Γ₃ Γ₄ : TypingContext
 
 infix 2 _⊢_::_,_
 data _⊢_::_,_ (Γᵢ : TypingContext) : (t : Term α) (ty : Type) (Γₒ : TypingContext) → Set where
@@ -37,7 +37,7 @@ data _⊢_::_,_ (Γᵢ : TypingContext) : (t : Term α) (ty : Type) (Γₒ : Typ
 
   TEat : Γᵢ ⊢ t :: ` q `Unit , Γ₂
               ------------------------------------------------------------------------
-           → Γᵢ ⊢ `eat t :: ` un `Unit , Γ₃
+           → Γᵢ ⊢ `eat t :: ` un `Unit , Γ₂
 
   TPair : (p₁ : x ∈ α) → (p₂ : y ∈ α)
             → Γᵢ ⊢ ` y # p₂ :: T₂ , Γ₂ -- the context is first passed into t₂ because pairs of ordered variables must conserve the order of the stack. For other variables the order of evaluation (in pairs) doesn't matter, so this is safe.
@@ -71,3 +71,42 @@ data _⊢_::_,_ (Γᵢ : TypingContext) : (t : Term α) (ty : Type) (Γₒ : Typ
              → Γ₂ ⊢ ` y # p₂ :: T₁ , Γ₃
              ------------------------------------------------------------------------
              → Γᵢ ⊢ (x · y) {p₁} {p₂} :: T₂ , Γ₃
+
+typing-unique : ∀ {Γ'₁ Γ'₂} → (Γ ⊢ t :: T₁ , Γ'₁)→ Γ ⊢ t :: T₂ , Γ'₂ → T₁ ≡ T₂ × Γ'₁ ≡ Γ'₂
+typing-unique (TUVar p elem₁ _) (TUVar .p  elem₂ _) with ∈*-unique elem₁ elem₂
+... | refl = refl , refl
+typing-unique (TUVar p elem is-un) (TLVar .p elem₁ is-lin  _ _) =
+  case ∈*-unique elem elem₁ of λ {refl → case trans (sym is-un) is-lin of λ ()}
+typing-unique (TUVar p elem is-un) (TOVar .p elem₁ is-ord _ _) =
+  case ∈*-unique elem elem₁ of λ {refl → case trans (sym is-un) is-ord of λ ()}
+typing-unique a@(TLVar _ _ _ _ _) b@(TUVar _ _ _) = Data.Product.map sym sym $ typing-unique b a
+typing-unique (TLVar p elem _ _ Γ'₁-proof) (TLVar .p elem₁ _ _ Γ'₂-proof) =
+  case ∈*-unique elem elem₁ of λ {refl → refl , deleteBinding-unique Γ'₁-proof Γ'₂-proof}
+typing-unique (TLVar p elem is-lin _ _) (TOVar .p elem₁ is-ord _ _) =
+  case ∈*-unique elem elem₁ of λ {refl → case trans (sym is-lin) is-ord of λ ()}
+typing-unique a@(TOVar _ _ _ _ _) b@(TUVar _ _ _) = Data.Product.map sym sym $ typing-unique b a
+typing-unique a@(TOVar _ _ _ _ _) b@(TLVar _ _ _ _ _) = Data.Product.map sym sym $ typing-unique b a
+typing-unique (TOVar p elem _ _ Γ'₁-proof) (TOVar .p elem₁ _ _ Γ'₂-proof) =
+  case ∈*-unique elem elem₁ of λ {refl → refl , deleteBinding-unique Γ'₁-proof Γ'₂-proof}
+typing-unique TBool TBool = refl , refl
+typing-unique TUnit TUnit = refl , refl
+typing-unique (TIf cond-bool₁ left-T₁ right-T₁) (TIf cond-bool₂ left-T₂ right-T₂) with typing-unique cond-bool₁ cond-bool₂
+... | (refl , refl) = typing-unique left-T₁ left-T₂
+typing-unique (TEat a) (TEat b) = refl , proj₂ (typing-unique a b)
+typing-unique (TPair _ _ left₁ right₁ _ _) (TPair _ _ left₂ right₂ _ _) with typing-unique left₁ left₂
+... | (refl , refl) with typing-unique right₁ right₂
+...   | (refl , refl) = refl , refl 
+typing-unique (TSplit arg₁ body₁ div₁) (TSplit arg₂ body₂ div₂) with typing-unique arg₁ arg₂
+... | (refl , refl) with typing-unique body₁ body₂
+...   | (refl , refl) with ÷-unique div₁ div₂
+...     | refl = refl , refl
+typing-unique (TLet arg₁ body₁ div₁) (TLet arg₂ body₂ div₂) with typing-unique arg₁ arg₂
+... | (refl , refl) with typing-unique body₁ body₂
+...   | (refl , refl) with ÷-unique div₁ div₂
+...     | refl = refl , refl
+typing-unique (TAbs _ _ body₁ div₁) (TAbs _ _ body₂ div₂) with typing-unique body₁ body₂
+... | (refl , refl) with ÷-unique div₁ div₂
+...   | refl = refl , refl
+typing-unique (TApp _ _ _ fun₁ arg₁) (TApp _ _ _ fun₂ arg₂) with typing-unique fun₁ fun₂
+... | (refl , refl) with typing-unique arg₁ arg₂
+...   | (refl , refl) = refl , refl
