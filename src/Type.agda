@@ -8,6 +8,7 @@ open import Relation.Binary using (DecidableEquality; Decidable; REL)
 open import Relation.Unary using (Pred) renaming (Decidable to Decidable₁)
 open import Level
 open import Data.Sum renaming (inj₁ to yes'; inj₂ to no') public
+open import Data.Product
 
 -- Qualifier is folded into Type because having ord functions is forbidden. If that can be relaxed, this definition can be made more elegant
 data Type : Set where
@@ -28,26 +29,25 @@ data IsProduct : Pred Type 0ℓ where
 data IsArrow : Pred Type 0ℓ where
   isArrow : ∀ {q T U} {p : q ≢ ord} → IsArrow ((` q ` T ⇒ U) {p})
 
-bool? :  (ty : Type) → IsBool ty ⊎ (∀ {q : Qualifier} → ` q `Bool ≢ ty)
-bool? ` x `Bool = yes' isBool
+bool? :  (ty : Type) → Σ Qualifier (λ q → ` q `Bool ≡ ty) ⊎ (∀ {q : Qualifier} → ` q `Bool ≢ ty)
+bool? ` x `Bool = yes' (x , refl)
 bool? ` x `Unit = no' (λ ())
 bool? (` x ` x₁ `× x₂) = no' (λ ())
 bool? (` q ` x ⇒ x₁) = no' (λ ())
 
---unit? : (ty : Type) → IsUnit ty ⊎ (∀ {q : Qualifier} → ty ≢ ` q `Unit)
+unit? : (ty : Type) → Σ Qualifier (λ q → ` q `Unit ≡ ty) ⊎ (∀ {q : Qualifier} → ty ≢ ` q `Unit)
+unit? ` x `Bool = no' (λ ())
+unit? ` x `Unit = yes' (x , refl)
+unit? (` x ` ty `× ty₁) = no' (λ ())
+unit? (` q ` ty ⇒ ty₁) = no' (λ ())
 
+product? :  (ty : Type) → Σ (Qualifier × Type × Type) (λ { (q , T , U) → ` q ` T `× U ≡ ty})  ⊎ (∀ {q T U} → ty ≢ ` q ` T `× U)
+product? ` x `Bool = no' (λ ())
+product? ` x `Unit = no' (λ ())
+product? (` q ` x₁ `× x₂) = yes' ((q , (x₁ , x₂)) , refl)
+product? (` q ` x ⇒ x₁) = no' (λ ())
 
-product? : Decidable₁ IsProduct
-product? ` x `Bool = no (λ ())
-product? ` x `Unit = no (λ ())
-product? (` x ` x₁ `× x₂) = yes isProduct
-product? (` q ` x ⇒ x₁) = no (λ ())
-
-arrow? : Decidable₁ IsArrow
-arrow? ` x `Bool = no (λ ())
-arrow? ` x `Unit = no (λ ())
-arrow? (` x ` x₁ `× x₂) = no (λ ())
-arrow? (` q ` x ⇒ x₁) = yes isArrow
+-- arrow? : (ty : Type) → Σ (Qualifier × Type × Type) (λ { (q , T , U) → ` q ` T ⇒ U ≡ ty})  ⊎ (∀ {q T U} → ty ≢ ` q ` T ⇒ U)
 
 qualifierOf : Type → Qualifier
 qualifierOf ` q `Bool = q

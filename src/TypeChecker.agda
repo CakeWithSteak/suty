@@ -39,11 +39,33 @@ typeOf Γ (`if t₁ then t₂ else t₃) with typeOf Γ t₁
 ... | no cond-untypable = no (λ { (_ , TIf  {q = q} {Γ₂ = Γ₂} cond-bool _ _) → contradiction ((` q `Bool , Γ₂) , cond-bool) cond-untypable})
 ... | yes ((T-cond , Γ₂) , cond-proof) with bool? T-cond
 ... | no' cond-not-bool = no (λ { (_ , TIf  cond-bool _ _) → typing-contradiction cond-not-bool cond-bool cond-proof})
-... | yes' cond-bool with typeOf Γ₂ t₂ | typeOf Γ₂ t₃
+... | yes' (q , refl) with typeOf Γ₂ t₂ | typeOf Γ₂ t₃
 ... | no a  | _ = no (if-untypable-if-either-arm-untypable cond-proof (inj₁ a))
 ... | _        | no b =  no (if-untypable-if-either-arm-untypable cond-proof (inj₂ b))
-typeOf Γ (` x < x₁ , y >) = {!!}
-typeOf Γ (`split t as x , y ⇒ t₁) = {!!}
+... | yes ((T-left , Γ₃-left) , left-proof) | yes ((T-right , Γ₃-right) , right-proof) with T-left ≟ₜ T-right ×-dec (_≟Γ_ {_≟ᵥ_ = _≟ₜ_} Γ₃-left Γ₃-right)
+... | no left≢right = no
+         λ { ((T , Γ₃') , TIf cond' left right) → case typing-unique cond-proof cond' of
+         λ {(refl , refl) → case typing-unique left left-proof of
+         λ {(refl , refl) → case typing-unique right right-proof of
+         λ {(refl , refl) → contradiction (refl , refl) left≢right}}}}
+... | yes (refl , refl) = yes ((T-left , Γ₃-left) , TIf cond-proof left-proof right-proof)
+typeOf Γ ((` q < x , y >) {x-well-scoped} {y-well-scoped}) with typeOf Γ (` y # y-well-scoped)
+... | no y-untypable = no (λ { (_ , TPair {T₂ = T₂} {Γ₂ = Γ₂} _ _ y-typable _ _ _) → contradiction ((T₂ , Γ₂) , y-typable) y-untypable})
+... | yes ((T₂ , Γ₂) , T₂-proof) with typeOf Γ₂ (` x # x-well-scoped)
+... | no x-untypable =  no (λ { (_ , TPair {T₁ = T₁} {Γ₃ = Γ₃} _ _ y-typable x-typable _ _) → case typing-unique T₂-proof y-typable of λ {(refl , refl) → contradiction ((T₁ , Γ₃) , x-typable) x-untypable}})
+... | yes ((T₁ , Γ₃) , T₁-proof) with canContain? q T₁ | canContain? q T₂
+... | no a | _ = no (λ { ((T , Γ') , TPair _ _ proof-y proof-x containment-x _) → case typing-unique proof-y T₂-proof of λ {(refl , refl) → case typing-unique proof-x T₁-proof of case typing-unique T₁-proof proof-x  of λ {(refl , refl) → contradiction containment-x a}}})
+... | _       | no b = no (λ { ((T , Γ') , TPair _ _ proof-y proof-x _ containment-y) → case typing-unique proof-y T₂-proof of λ {(refl , refl) → case typing-unique proof-x T₁-proof of case typing-unique T₂-proof proof-y  of λ {(refl , refl) → contradiction containment-y b}}})
+... | yes containment-x | yes containment-y = yes (((` q ` T₁ `× T₂) , Γ₃) , (TPair x-well-scoped y-well-scoped T₂-proof T₁-proof containment-x containment-y))
+typeOf Γ (`split t₁ as x , y ⇒ t₂) with typeOf Γ t₁
+... | no t₁-untypable = no (λ { (_ , TSplit {q = q} {T₁ = T₁} {T₂ = T₂} {Γ₂ = Γ₂} t₁-typable _ _) → contradiction ((` q ` T₁ `× T₂ , Γ₂) , t₁-typable) t₁-untypable})
+... | yes ((T₁ , Γ₂) , T₁-proof) with product? T₁
+... | no' not-prod = no (λ { (_ , TSplit  t₁-proof _ _) → case typing-unique T₁-proof t₁-proof of λ {(refl , refl) → contradiction refl not-prod}})
+... | yes' ((q , T₁₁ , T₁₂) , refl) with typeOf ((Γ₂ , x ↦ T₁₁) , y ↦ T₁₂) t₂
+... | no t₂-untypable = no (λ { (_ , TSplit {T = T₂} {Γ₃ = Γ₃} t₁-proof t₂-proof _) → case typing-unique T₁-proof t₁-proof of λ {(refl , refl) → contradiction ((T₂ , Γ₃) , t₂-proof) t₂-untypable}})
+... | yes ((T₂ , Γ₃) , T₂-proof) with divideContext Γ₃ ((∅ , x ↦ T₁₁) , y ↦ T₁₂)
+... | no Γ₃-nodiv = no (λ { (_ , TSplit {Γ₄ = Γ₄} t₁-proof t₂-proof Γ₃-div) → case typing-unique T₁-proof t₁-proof of λ { (refl , refl) → case typing-unique T₂-proof t₂-proof of λ {(refl , refl) → contradiction (Γ₄ , Γ₃-div) Γ₃-nodiv}}})
+... | yes (Γ₄ , Γ₄-proof) = yes ((T₂ , Γ₄) , (TSplit T₁-proof T₂-proof Γ₄-proof))
 typeOf Γ (` q ƛ x :: x₁ ⇒ t) = {!!}
 typeOf Γ (x · y) = {!!}
 typeOf Γ (`let x := t ⇒ t₁) = {!!}
