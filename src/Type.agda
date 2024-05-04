@@ -47,7 +47,11 @@ product? ` x `Unit = no' (λ ())
 product? (` q ` x₁ `× x₂) = yes' ((q , (x₁ , x₂)) , refl)
 product? (` q ` x ⇒ x₁) = no' (λ ())
 
--- arrow? : (ty : Type) → Σ (Qualifier × Type × Type) (λ { (q , T , U) → ` q ` T ⇒ U ≡ ty})  ⊎ (∀ {q T U} → ty ≢ ` q ` T ⇒ U)
+arrow? : (ty : Type) → (Σ Qualifier λ q → Σ (q ≢ ord × Type × Type) (λ { (q≢ord , T , U) → (` q ` T ⇒ U) {q≢ord} ≡ ty}))  ⊎ (∀ {q T U q≢ord} → ty ≢ (` q ` T ⇒ U) {q≢ord})
+arrow? ` x `Bool = no' (λ ())
+arrow? ` x `Unit = no' (λ ())
+arrow? (` x ` x₁ `× x₂) = no' (λ ())
+arrow? ((` q ` T₁ ⇒ T₂) {q≢ord}) = yes' (q , ((q≢ord , T₁ , T₂) , refl))
 
 qualifierOf : Type → Qualifier
 qualifierOf ` q `Bool = q
