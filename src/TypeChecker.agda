@@ -1,20 +1,20 @@
-module TypeChecker where
+open import Relation.Binary.Definitions
 
-open import Data.String renaming (_≟_ to _≟ₛ_)
-name = String
+module TypeChecker {name : Set} {_≟ₙ_ : DecidableEquality name} where
 
 open import Type
 open import Qualifier
-open import TypingRules {name} {_≟ₛ_}
-open import TypingContext {name} {_≟ₛ_}
-open import Term {name} {_≟ₛ_}
-open import Util.Context {name} {_≟ₛ_}
+open import TypingRules {name} {_≟ₙ_}
+open import TypingContext {name} {_≟ₙ_}
+open import Term {name} {_≟ₙ_}
+open import Util.Context {name} {_≟ₙ_}
 open import Data.Product
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary.Decidable
 open import Relation.Nullary.Negation
 open import Function using (case_of_; _$_)
 open import Data.Sum using (inj₁; inj₂)
+
 
 private
   variable
@@ -24,9 +24,10 @@ private if-untypable-if-either-arm-untypable : ∀ {Γ Γ' T} {t t₁ t₂ : Ter
 if-untypable-if-either-arm-untypable cond (inj₁ t₁-untypable) = λ { ((T , Γ') , TIf cond' t₁-typable _) → case typing-unique cond cond' of λ {(refl , refl) → contradiction ((T , Γ') , t₁-typable) t₁-untypable}}
 if-untypable-if-either-arm-untypable cond (inj₂ t₂-untypable) = λ { ((T , Γ') , TIf cond' _ t₂-typable) → case typing-unique cond cond' of λ {(refl , refl) → contradiction ((T , Γ') , t₂-typable) t₂-untypable}}
 
-typeOf : (Γ : TypingContext) → (t : Term α) → Dec (Σ (Type × TypingContext) λ { (T , Γ') → Γ ⊢ t :: T , Γ' } )
-checkType : (Γ : TypingContext) → (t : Term α) → (T : Type) → Dec (Σ (TypingContext) λ Γ' → Γ ⊢ t :: T , Γ' ) -- todo useless?
+TypecheckResult : TypingContext → Term α → Set
+TypecheckResult Γ t =  Dec (Σ (Type × TypingContext) λ { (T , Γ') → Γ ⊢ t :: T , Γ' } )
 
+typeOf : (Γ : TypingContext) → (t : Term α) → TypecheckResult Γ t
 typeOf Γ (` x # well-scoped) with typeLookup Γ x
 ...  | no not-elem = no (λ { ((ty , _) , TUVar .well-scoped elem _) → contradiction (ty , elem) not-elem ; ((ty , _) , TLVar .well-scoped elem _ _ _) → contradiction (ty , elem) not-elem ; ((ty , _) , TOVar .well-scoped elem _ _ _) → contradiction (ty , elem) not-elem})
 ...  | yes (ty , elem) = yes $ qualifierCases ty
@@ -96,9 +97,3 @@ typeOf Γ (`eat t) with typeOf Γ t
 ... | yes ((T , Γ₂) , T-proof) with unit? T
 ... | no' not-unit = no (λ { (_ , TEat t-unit) → typing-contradiction not-unit T-proof t-unit })
 ... | yes' (_ , refl) = yes ((` un `Unit , Γ₂) , TEat T-proof)
-
-checkType Γ t T with typeOf Γ t
-... | no untypable = no λ { (Γ' , proof) → contradiction ((T , Γ') , proof) untypable}
-... | yes ((T' , Γ') , T'-proof) with T ≟ₜ T'
-...   | no T≢T' = no λ {(Γ'' , Γ''-proof) → contradiction (proj₁ (typing-unique Γ''-proof T'-proof)) T≢T'}
-...   | yes refl = yes (Γ' , T'-proof)
