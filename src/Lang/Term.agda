@@ -1,11 +1,11 @@
 open import Relation.Binary.Definitions
 
-module Term {name : Set} {_≟ₙ_ : DecidableEquality name} where
+module Lang.Term {name : Set} {_≟ₙ_ : DecidableEquality name} where
 
-open import Util.Context {name} {_≟ₙ_}
+open import Scoping.Context {name} {_≟ₙ_}
 open import Data.Bool using (Bool)
-open import Qualifier
-open import Type
+open import Lang.Qualifier
+open import Lang.Type
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_)
 
 data Term (α : Scope) : Set where

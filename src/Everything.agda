@@ -1,20 +1,11 @@
 module Everything where
 
-open import Data.String renaming (_≟_ to _≟ₛ_)
+open import Lang
+open import TypeChecker
+open import Scoping.Context {name} {_≟ₙ_}
 
-name = String
-
-open import Term {name = name} {_≟ₙ_ = _≟ₛ_}
-open import TypeChecker {name = name} {_≟ₙ_ = _≟ₛ_}
-open import Type
-open import Util.Context {name = name} {_≟ₙ_ = _≟ₛ_}
-open import Qualifier
 open import Relation.Binary.PropositionalEquality
-
--- imported for nicer printing
 open import Data.Product
-open import TypingRules
-open import TypingContext
 open import Relation.Nullary.Decidable
 open import Level
 open import Relation.Binary using (REL)

@@ -1,10 +1,10 @@
 open import Relation.Binary.Definitions
 
-module TypingContext {name : Set} {_≟ₙ_ : DecidableEquality name} where
+module Lang.TypingContext {name : Set} {_≟ₙ_ : DecidableEquality name} where
 
-open import Type
-open import Qualifier
-open import Util.Context {name} {_≟ₙ_}
+open import Lang.Type
+open import Lang.Qualifier
+open import Scoping.Context {name} {_≟ₙ_}
 open import Data.Bool using (if_then_else_)
 open import Relation.Nullary.Decidable
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl)

@@ -1,6 +1,6 @@
 module Raw.Base where
 
-open import Qualifier
+open import Lang.Qualifier
 open import Data.Bool
 open import Data.String renaming (_≟_ to _≟ₛ_)
 open import Data.Bool.Show renaming (show to showBool)
