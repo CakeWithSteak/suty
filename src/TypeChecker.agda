@@ -1,13 +1,9 @@
 open import Relation.Binary.Definitions
 
-module TypeChecker {name : Set} {_≟ₙ_ : DecidableEquality name} where
+module TypeChecker where
 
-open import Type
-open import Qualifier
-open import TypingRules {name} {_≟ₙ_}
-open import TypingContext {name} {_≟ₙ_}
-open import Term {name} {_≟ₙ_}
-open import Util.Context {name} {_≟ₙ_}
+open import Lang 
+open import Scoping.Context {name} {_≟ₙ_}
 open import Data.Product
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary.Decidable

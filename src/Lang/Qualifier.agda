@@ -1,4 +1,4 @@
-module Qualifier where
+module Lang.Qualifier where
 
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality using (_≡_) renaming (refl to ≡-refl; sym to ≡-sym; trans to ≡-trans)

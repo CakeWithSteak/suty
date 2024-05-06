@@ -1,7 +1,7 @@
 open import Relation.Binary.Definitions using (DecidableEquality)
 open import Level
 
-module Util.Context {name : Set} {_≟ₙ_ : DecidableEquality name} where
+module Scoping.Context {name : Set} {_≟ₙ_ : DecidableEquality name} where
 
 open import Relation.Binary.PropositionalEquality
 open import Data.Unit using (⊤; tt)

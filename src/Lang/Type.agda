@@ -1,6 +1,6 @@
-module Type where
+module Lang.Type where
 
-open import Qualifier hiding (refl)
+open import Lang.Qualifier hiding (refl)
 open import Relation.Nullary.Negation using (contradiction)
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl)
 open import Relation.Nullary.Decidable using  (Dec; yes; no; False)

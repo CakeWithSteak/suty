@@ -1,11 +1,11 @@
 open import Relation.Binary.Definitions
-module TypingRules {name : Set} {_≟ₙ_ : DecidableEquality name} where
+module Lang.TypingRules {name : Set} {_≟ₙ_ : DecidableEquality name} where
 
-open import Util.Context {name} {_≟ₙ_}
-open import Type
-open import Term {name} {_≟ₙ_}
-open import TypingContext {name} {_≟ₙ_}
-open import Qualifier hiding (trans)
+open import Scoping.Context {name} {_≟ₙ_}
+open import Lang.Type
+open import Lang.Term {name} {_≟ₙ_}
+open import Lang.TypingContext {name} {_≟ₙ_}
+open import Lang.Qualifier hiding (trans)
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; trans; sym)
 open import Relation.Nullary.Negation using (contradiction; ¬_)
 open import Relation.Nullary.Decidable
