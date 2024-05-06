@@ -7,6 +7,7 @@ open import Relation.Nullary
 open import Data.Bool hiding (_≟_)
 open import Data.Empty
 open import Function.Base
+open import Data.String
 
 data Qualifier : Set where
   un : Qualifier
@@ -71,3 +72,7 @@ qualifierPreorder = record {
     trans = trans }
   }
  
+showQualifier : Qualifier → String
+showQualifier un = "un"
+showQualifier lin = "lin"
+showQualifier ord = "ord"
