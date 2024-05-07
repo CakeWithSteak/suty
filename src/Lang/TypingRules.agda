@@ -48,24 +48,27 @@ data _⊢_::_,_ (Γᵢ : TypingContext) : (t : Term α) (ty : Type) (Γₒ : Typ
             ------------------------------------------------------------------------
             → Γᵢ ⊢ ` q < x , y > {p₁} {p₂} :: ` q ` T₁ `× T₂ , Γ₃
 
-  TSplit : Γᵢ ⊢ t₁ :: ` q ` T₁ `× T₂ , Γ₂
+  TSplit : (p₁ : x ∉ α) → (p₂ : y ∉ α)
+              →  Γᵢ ⊢ t₁ :: ` q ` T₁ `× T₂ , Γ₂
               → ((Γ₂ , x ↦ T₁) , y ↦ T₂) ⊢ t₂ :: T , Γ₃
               → Γ₃ ÷ (∅ , x ↦ T₁) , y ↦ T₂ ≡ Γ₄
               ------------------------------------------------------------------------
-              → Γᵢ ⊢ `split t₁ as x , y ⇒ t₂ :: T , Γ₄
+              → Γᵢ ⊢ (`split t₁ as x , y ⇒ t₂) {p₁} {p₂} :: T , Γ₄
 
-  TLet : Γᵢ ⊢ t₁ :: T₁ , Γ₂
+  TLet : (p : x ∉ α)
+           → Γᵢ ⊢ t₁ :: T₁ , Γ₂
            → Γ₂ , x ↦ T₁ ⊢ t₂ :: T₂ , Γ₃
            → Γ₃ ÷ ∅ , x ↦ T₁ ≡ Γ₄
            ------------------------------------------------------------------------
-           → Γᵢ ⊢ `let x := t₁ ⇒ t₂ :: T₂ , Γ₄
+           → Γᵢ ⊢ (`let x := t₁ ⇒ t₂) {p} :: T₂ , Γ₄
 
-  TAbs : (p : q ≢ ord)
+  TAbs : (p-uniq : x ∉ α)
+            → (p-notord : q ≢ ord)
             → q ⟨⟨ Γᵢ ⟩⟩
             → Γᵢ , x ↦ T₁ ⊢ t :: T₂ , Γ₂
             → Γ₂ ÷ (∅ , x ↦ T₁) ≡ Γ₃
             ------------------------------------------------------------------------
-            → Γᵢ ⊢ (` q ƛ x :: T₁ ⇒ t) {p} :: (` q ` T₁ ⇒ T₂) {p} , Γ₃
+            → Γᵢ ⊢ (` q ƛ x :: T₁ ⇒ t) {p-notord} {p-uniq} :: (` q ` T₁ ⇒ T₂) {p-notord} , Γ₃
 
   TApp : (p₁ : x ∈ α) (p₂ : y ∈ α) (pq : q ≢ ord)
              → Γᵢ ⊢ ` x # p₁ :: (` q ` T₁ ⇒ T₂) {pq} , Γ₂
@@ -101,15 +104,15 @@ typing-unique (TEat a) (TEat b) = refl , proj₂ (typing-unique a b)
 typing-unique (TPair _ _ left₁ right₁ _ _) (TPair _ _ left₂ right₂ _ _) with typing-unique left₁ left₂
 ... | (refl , refl) with typing-unique right₁ right₂
 ...   | (refl , refl) = refl , refl 
-typing-unique (TSplit arg₁ body₁ div₁) (TSplit arg₂ body₂ div₂) with typing-unique arg₁ arg₂
+typing-unique (TSplit _ _ arg₁ body₁ div₁) (TSplit _ _ arg₂ body₂ div₂) with typing-unique arg₁ arg₂
 ... | (refl , refl) with typing-unique body₁ body₂
 ...   | (refl , refl) with ÷-unique div₁ div₂
 ...     | refl = refl , refl
-typing-unique (TLet arg₁ body₁ div₁) (TLet arg₂ body₂ div₂) with typing-unique arg₁ arg₂
+typing-unique (TLet _ arg₁ body₁ div₁) (TLet _ arg₂ body₂ div₂) with typing-unique arg₁ arg₂
 ... | (refl , refl) with typing-unique body₁ body₂
 ...   | (refl , refl) with ÷-unique div₁ div₂
 ...     | refl = refl , refl
-typing-unique (TAbs _ _ body₁ div₁) (TAbs _ _ body₂ div₂) with typing-unique body₁ body₂
+typing-unique (TAbs _ _ _ body₁ div₁) (TAbs _ _ _ body₂ div₂) with typing-unique body₁ body₂
 ... | (refl , refl) with ÷-unique div₁ div₂
 ...   | refl = refl , refl
 typing-unique (TApp _ _ _ fun₁ arg₁) (TApp _ _ _ fun₂ arg₂) with typing-unique fun₁ fun₂
