@@ -37,6 +37,9 @@ data _↦_∈_  (x : name) (v : V) : Context V → Set  where
 _∈_ :  name → Context ⊤ → Set
 _∈_ x Γ = x ↦ tt ∈ Γ
 
+_∉_ : name → Context ⊤ → Set
+_∉_ x Γ = ¬ (x ↦ tt ∈ Γ)
+
 _↦_∈?_ : (x : name) (v : V) (Γ : Context V) {_≟ᵥ_ : DecidableEquality V} → Dec (x ↦ v ∈ Γ)
 x ↦ v ∈? ∅ = no (λ ())
 (x ↦ v ∈? (Γ , y ↦ u)) {_≟ᵥ_} with x ≟ₙ y ×-dec v ≟ᵥ u | (x ↦ v ∈? Γ) {_≟ᵥ_}
