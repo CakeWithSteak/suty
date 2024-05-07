@@ -3,10 +3,10 @@ open import Relation.Binary.Definitions
 module Raw.Erasure where
 
 open import Raw.Base
-open import Type
-open import Term {name} {_≟ₙ_}
-open import Qualifier
-open import Util.Context
+open import Lang.Type
+open import Lang.Term {name} {_≟ₙ_}
+open import Lang.Qualifier
+open import Scoping.Context
 open import Relation.Binary.PropositionalEquality using (_≢_)
 open import Data.Product
 open import Data.Bool using (Bool)
