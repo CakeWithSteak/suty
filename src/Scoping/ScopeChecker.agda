@@ -6,11 +6,12 @@ open import Data.String using (String) renaming (_≟_ to _≟String_)
 open import Relation.Binary.Definitions
 open import Relation.Nullary.Decidable
 open import Relation.Binary.PropositionalEquality using (refl; _≡_;_≢_)
-open import Relation.Nullary.Negation using (contradiction)
+open import Relation.Nullary.Negation using (contradiction; contraposition)
 open import Data.Product
 open import Data.Sum
 open import Function using (_$_; _∋_)
 open import Lang.Qualifier
+open import Function using (case_of_)
 
 record AbstractName : Set where
   constructor _aka_
@@ -91,6 +92,37 @@ freshUniqueVar α = let (id , proof) = strictUpperBoundId α in (id aka "#fresh"
     strictUpperBoundId ∅ = zero , ∅
     strictUpperBoundId (α ⸴ (id aka _)) = let (max , all) = strictUpperBoundId α in (suc (max ⊔ id)) , ( mapAll (λ { {x = id' aka _} id'<max → m<n⇒m<1+n $ m<n⇒m<n⊔o id id'<max }) all , (n≤m⇒n<1+m $ ≤-trans (m≤m⊔n id max) (≤-reflexive (⊔-comm id max))))
 
+
+rescopeTerm : {α β : Scope} → ScopeEquivalent α β → Term α → Term β
+rescopeTerm record { equiv = equiv } (` x # well-scoped-x) = ` x # _⇔_.to (equiv x) well-scoped-x
+rescopeTerm record { equiv = equiv } (` q ` b) = ` q ` b
+rescopeTerm record { equiv = equiv } ` q `unit = ` q `unit
+rescopeTerm se@record { equiv = equiv } (`if t then t₁ else t₂) = `if (rescopeTerm se t) then (rescopeTerm se t₁) else (rescopeTerm se t₂)
+rescopeTerm record { equiv = equiv } ((` q < a , b >) {well-scoped-a} {well-scoped-b}) = ` q < a , b > {_⇔_.to (equiv a) well-scoped-a} {_⇔_.to (equiv b) well-scoped-b}
+rescopeTerm se@record { equiv = equiv } ((`split t as x , y ⇒ t₁) {x-uniq} {y-uniq} {x≢y}) = (`split rescopeTerm se t as x , y ⇒ rescopeTerm extendedEquivalence t₁) {x-uniq-b} {y-uniq-b} {x≢y}
+  where
+    extendedEquivalence = extendEquivalence y $ extendEquivalence x se
+    x-uniq-b = contraposition (_⇔_.from (equiv x)) x-uniq
+    y-uniq-b = contraposition (_⇔_.from (equiv y)) y-uniq
+rescopeTerm se@record { equiv = equiv } ((` q ƛ x :: T ⇒ t) {q-not-ord} {x-uniq}) = (` q ƛ x :: T ⇒ rescopeTerm (extendEquivalence x se) t) {q-not-ord} {contraposition (_⇔_.from (equiv x)) x-uniq}
+rescopeTerm record { equiv = equiv } ((x · y) {well-scoped-x} {well-scoped-y}) = (x · y) {(_⇔_.to (equiv x) well-scoped-x)} {_⇔_.to (equiv y) well-scoped-y}
+rescopeTerm se@record { equiv = equiv } ((`let x := t ⇒ t₁) {x-uniq}) = (`let x := (rescopeTerm se t) ⇒ (rescopeTerm (extendEquivalence x se) t₁)) {contraposition (_⇔_.from (equiv x)) x-uniq}
+rescopeTerm se@record { equiv = equiv } (`eat t) = `eat (rescopeTerm se t)
+
+α-convert : {α : Scope} (x : AbstractName) (y : AbstractName) → Term α → Σ[ β ∈ Scope ] (Term β × ScopeRenamed α β x y)
+α-convert {α} x y (` a # well-scoped-a) with a ≟ₙ x
+... | yes refl = ? , ?
+... | no a≢x = {!!}
+α-convert {α} x y (` q ` b) = {!!}
+α-convert {α} x y ` q `unit = {!!}
+α-convert {α} x y (`if t then t₁ else t₂) = {!!}
+α-convert {α} x y ` q < a , b > = {!!}
+α-convert {α} x y (`split t as a , b ⇒ t₁) = {!!}
+α-convert {α} x y (` q ƛ a :: T ⇒ t) = {!!}
+α-convert {α} x y (a · b) = {!!}
+α-convert {α} x y (`let a := t ⇒ t₁) = {!!}
+α-convert {α} x y (`eat t) = {!!}
+
 --freshUniqueVar ∅ = (zero aka "?fresh") , (λ ())
 --freshUniqueVar (α ⸴ (id aka _)) = ((suc {!id ⊔ !}) aka {!!}) , {!!}
 
@@ -101,10 +133,15 @@ freshUniqueVar α = let (id , proof) = strictUpperBoundId α in (id aka "#fresh"
 
 --α-convert-split₁ x y b (`split t₁ as .x , .b ⇒ t₂) {is-split = refl} = `split t₁ as b , y ⇒ {!α-convert x y t₂!}
 
---α-convert : {α : Scope} (x y : AbstractName) (x∈α : x ∈' α) → Term α → Σ[ β ∈ Scope ] (Term β)
+-- green slime? hope not!
+--α-convert : {α : Scope} (x y : AbstractName) (x∈α : x ∈' α) → Term α → Term (proj₁ $ replaceInScope x y α x∈α)
+--α-convert' : {α : Scope} (x y : AbstractName) (x∈α : x ∈' α) → Term α → Σ[ β ∈ Scope ] (β ≡ (proj₁ $ replaceInScope x y α x∈α) × Term β)
+
+--α-convert' {α} x y x∈α t = (proj₁ $ replaceInScope x y α x∈α) , (refl , α-convert x y x∈α t)
+
 --α-convert {α} x y x∈α (` a # well-scoped-a) with a ≟ₙ x
---... | yes refl = let (β , y∈β , rest-preserved) = replaceInScope x y α well-scoped-a in β , ` y # y∈β
---... | no _ = α , ` a # well-scoped-a
+--... | yes refl = let (β , y∈β , rest-preserved) = replaceInScope x y α x∈α in  ` y # y∈β
+--... | no x≢a =  let (β , y∈β , rest-preserved) = replaceInScope x y α x∈α in ` a # rest-preserved a x≢a well-scoped-a
 --α-convert x y x∈α (` x₁ ` x₂) = {!!}
 --α-convert x y x∈α ` x₁ `unit = {!!}
 --α-convert x y x∈α (`if t then t₁ else t₂) = {!!}
@@ -112,11 +149,13 @@ freshUniqueVar α = let (id , proof) = strictUpperBoundId α in (id aka "#fresh"
 --α-convert {α} x y x∈α ((`split t as a , b ⇒ t₁) {a-uniq} {b-uniq} {a≢b}) with a ≟ₙ x | b ≟ₙ x
 --... | yes refl | yes refl = contradiction refl a≢b
 --... | yes refl | no _ = let
---    (β , t') = α-convert x y x∈α t
---    (fresh , fresh-uniq) = freshUniqueVar β
---    (β' , fresh∈β' , rest-preserved) = replaceInScope x fresh (β ⸴ x ⸴ b) (there here)
---    (γ , t₁')
---  in β , (`split t' as fresh , b ⇒ {!!})
+ --   t'  = α-convert x y x∈α t
+  --  β = scopeOf t'
+   -- (fresh , fresh-uniq) = freshUniqueVar β
+   -- (γ , (γ-id , t₁')) = α-convert' x fresh (there here) t₁
+    --(β' , fresh∈β' , rest-preserved) = replaceInScope x fresh ({!!} ⸴ x ⸴ b) (there here)
+    --(γ , t₁') = ?
+  --in case  (γ-id) of λ { (refl) → (`split t' as fresh , b ⇒ {!t₁'!})}
 --... | no _ | yes refl = {!!}
 --... | no _ | no _ = {!!}
 --α-convert x y x∈α (` q ƛ x₁ :: x₂ ⇒ t) = {!!}

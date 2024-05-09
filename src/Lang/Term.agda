@@ -20,6 +20,9 @@ data Term (α : Scope) : Set where
   `let_:=_⇒_ : (x : name) → Term α → Term (α ⸴ x) → {x ∉ α} → Term α
   `eat_ : Term α → Term α
 
+scopeOf : {α : Scope} → Term α → Scope
+scopeOf {α} _ = α
+
 infix 5 `_ƛ_::_⇒_
 infixl 7 _·_
 infix 9 `_#_

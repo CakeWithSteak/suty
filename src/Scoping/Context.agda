@@ -9,7 +9,7 @@ open import Relation.Nullary using (⌊_⌋; _×-dec_; yes; no; does; _because_;
 open import Relation.Unary using (Pred) renaming (Decidable to Decidable₁)
 open import Relation.Binary using (REL; IsDecEquivalence; _⇒_) renaming (Decidable to Decidable₂)
 open import Data.Bool using (true; false; if_then_else_)
-open import Function.Base using (case_of_)
+open import Function.Base using (case_of_; _$_)
 open import Data.Product
 open import Data.Sum
 open import Data.Empty
@@ -102,6 +102,86 @@ _≟Γ_ {V} {_≟ᵥ_} (Γ , x ↦ v) (Ω , y ↦ u) with x ≟ₙ y ×-dec v �
 Scope : Set
 Scope = Context ⊤
 
-replaceInScope : (x y : name) (α : Scope) → (x∈α : x ∈ α) → Σ[ β ∈ Scope ] (y ∈ β × ∀ (a : name) → a ≢ x → a ∈ α → a ∈ β)
-replaceInScope x y (α' ⸴ .x) here = (α' ⸴ y) , here , λ { a a≢x here → contradiction refl a≢x ; a a≢x (there a∈α') → there a∈α'}
-replaceInScope x y (α' ⸴ z) (there x∈α') = let (β' , y∈β' , β'-good) = replaceInScope x y α' x∈α' in  (β' ⸴ z) , (there y∈β' , λ { a a≢x here → here ; a a≢x (there a∈α') → there (β'-good a a≢x a∈α')})
+-- todo reorganise
+
+-- Equivalence without congruence requirements
+infix 3 _⇔_
+record _⇔_ (A : Set) (B : Set) : Set where
+  field
+    to : A → B
+    from : B → A
+
+record ScopeEquivalent (α : Scope) (β : Scope) : Set where
+  field
+    equiv : ∀ x → x ∈ α ⇔ x ∈ β
+
+record ScopeRenamed (α : Scope) (β : Scope) (x : name) (y : name) : Set where
+  field
+    equivIfNotRenamed : ∀ a → a ≢ x → a ≢ y → a ∈ α ⇔ a ∈ β
+    x∈α : x ∈ α
+    x∉β : x ∉ β
+    y∉α : y ∉ α
+    y∈β : y ∈ β
+    x≢y : x ≢ y
+
+extendEquivalence : {α β : Scope} → (a : name) → ScopeEquivalent α β → ScopeEquivalent (α ⸴ a) (β ⸴ a)
+extendEquivalence {α} {β} a record { equiv = equiv } = record { equiv = λ a' → record { to = to ; from = from } }
+  where
+    to : ∀ {a'} → a' ∈ (α ⸴ a) → a' ∈ (β ⸴ a)
+    to here = here
+    to {a'} (there a'∈α') = there (( _⇔_.to $ equiv a') a'∈α')
+    
+    from : ∀ {a'} → a' ∈ (β ⸴ a) → a' ∈ (α ⸴ a)
+    from here = here
+    from {a'} (there a'∈β') = there ((_⇔_.from $ equiv a') a'∈β')
+
+extendRenaming : {α β : Scope} {x y : name} → (a : name) → a ≢ x → a ≢ y → ScopeRenamed α β x y → ScopeRenamed (α ⸴ a) (β ⸴ a) x y
+extendRenaming {α} {β} {x} {y} a a≢x a≢y record { equivIfNotRenamed = equivIfNotRenamed ; x∈α = x∈α ; x∉β = x∉β ; y∉α = y∉α ; y∈β = y∈β; x≢y = x≢y }= record {
+  equivIfNotRenamed = λ a' a'≢x a'≢y → record { to = to a'≢x a'≢y ; from = from a'≢x a'≢y  } ;
+  x∈α = there x∈α ;
+  x∉β = λ { here → contradiction refl a≢x ; (there elem) → contradiction elem x∉β };
+  y∉α =  λ { here → contradiction refl a≢y ; (there elem) → contradiction elem y∉α } ;
+  y∈β = there y∈β;
+  x≢y = x≢y
+  }
+  where
+    to : {a' : name} → a' ≢ x → a' ≢ y → a' ∈ (α ⸴ a) → a' ∈ (β ⸴ a)
+    to a'≢x a'≢y here = here
+    to {a'} a'≢x a'≢y (there a'∈α') = there ((_⇔_.to $ equivIfNotRenamed a' a'≢x a'≢y) a'∈α')
+
+    from : {a' : name} → a' ≢ x → a' ≢ y → a' ∈ (β ⸴ a) → a' ∈ (α ⸴ a)
+    from _ _ here = here
+    from {a'} a'≢x a'≢y (there a'∈β') = there ((_⇔_.from $ equivIfNotRenamed a' a'≢x a'≢y) a'∈β')
+
+mutualRenaming⇒equivalence : {α β δ : Scope} {x y : name} → ScopeRenamed α β x y → ScopeRenamed α δ x y → ScopeEquivalent β δ
+mutualRenaming⇒equivalence {α} {β} {δ} {x} {y} record { equivIfNotRenamed = equivIfNotRenamed₁ ; x∈α = x∈α ; x∉β = x∉β ; y∉α = y∉α; y∈β = y∈β; x≢y = x≢y } record { equivIfNotRenamed = equivIfNotRenamed₂ ; x∈α = _ ; x∉β = x∉δ ; y∉α = _ ; y∈β = y∈δ }
+  = record { equiv = λ a → record { to = to a ;from = from a }}
+  where
+    to : (a : name) → a ∈ β → a ∈ δ
+    to a a∈β with a ≟ₙ x | a ≟ₙ y
+    ... | yes refl | yes refl = contradiction refl x≢y
+    ... | yes refl | no a≢y = contradiction a∈β x∉β
+    ... | no a≢x | yes refl = y∈δ
+    ... | no a≢x | no a≢y = _⇔_.to (equivIfNotRenamed₂ a a≢x a≢y) a∈α 
+      where
+        a∈α = _⇔_.from (equivIfNotRenamed₁ a a≢x a≢y) a∈β
+
+    from : (a : name) → a ∈ δ → a ∈ β
+    from a a∈δ with a ≟ₙ x | a ≟ₙ y
+    ... | yes refl | yes refl = contradiction refl x≢y
+    ... | yes refl | no a≢y = contradiction a∈δ x∉δ
+    ... | no a≢x | yes refl = y∈β
+    ... | no a≢x | no a≢y = _⇔_.to (equivIfNotRenamed₁ a a≢x a≢y) a∈α
+      where
+        a∈α = _⇔_.from (equivIfNotRenamed₂ a a≢x a≢y) a∈δ
+
+--replaceInScope : (x y : name) (α : Scope) →  x ≢ y →  x ∈ α → Σ[ β ∈ Scope ] ScopeRenamed α β x y
+--replaceInScope x y (α' ⸴ .x) x≢y here   = (α' ⸴ y) , (record
+  --                                                     { equivIfNotRenamed = λ a a≢x a≢y → record { to = {!!} ; from = {!!} }
+     --                                                  ; x∈α = here
+        --                                               ; x∉β = {!!}
+           --                                            ; y∉α = {!!}
+              --                                         ; y∈β = here
+                 --                                      ; x≢y = {!!}
+                    --                                   })
+--replaceInScope x y (α' ⸴ z) x≢y (there x∈α') = {!!}
