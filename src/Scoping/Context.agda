@@ -5,7 +5,7 @@ module Scoping.Context {name : Set} {_≟ₙ_ : DecidableEquality name} where
 
 open import Relation.Binary.PropositionalEquality
 open import Data.Unit using (⊤; tt)
-open import Relation.Nullary using (⌊_⌋; _×-dec_; yes; no; does; _because_; of; ¬_; Dec; contradiction)
+open import Relation.Nullary using (⌊_⌋; _×-dec_; yes; no; does; _because_; of; ¬_; Dec; contradiction; contraposition)
 open import Relation.Unary using (Pred) renaming (Decidable to Decidable₁)
 open import Relation.Binary using (REL; IsDecEquivalence; _⇒_) renaming (Decidable to Decidable₂)
 open import Data.Bool using (true; false; if_then_else_)
@@ -102,6 +102,26 @@ _≟Γ_ {V} {_≟ᵥ_} (Γ , x ↦ v) (Ω , y ↦ u) with x ≟ₙ y ×-dec v �
 Scope : Set
 Scope = Context ⊤
 
+record UniqueScope (α : Scope) : Set where
+  constructor uniqueScope
+  field
+    elemProofsEqual : {x : name} → (a : x ∈ α) → (b : x ∈ α) → a ≡ b
+
+here⇒notThere : {α : Scope} {x : name} → UniqueScope (α ⸴ x) → x ∉ α
+here⇒notThere {α} {x} (uniqueScope proofsEqual) = λ {x∈α → contradiction (proofsEqual here (there x∈α)) λ () }
+
+addUnique : {α : Scope} → (x : name) → UniqueScope α → x ∉ α → UniqueScope (α ⸴ x)
+addUnique {α} x (uniqueScope proofsEqual) x∉α = uniqueScope (λ { here here → refl ; here (there p₂) → contradiction p₂ x∉α ; (there p₁) here → contradiction p₁ x∉α ; (there p₁) (there p₂) → cong there (proofsEqual p₁ p₂)})
+
+tailUnique : {α : Scope} → (x : name) → UniqueScope (α ⸴ x) → UniqueScope α
+tailUnique {α} x (uniqueScope proofsEqual) = uniqueScope (λ p₁ p₂ → case proofsEqual (there p₁) (there p₂) of λ {refl → refl})
+
+∅-unique : UniqueScope ∅
+∅-unique = uniqueScope (λ a ())
+
+∉-tail : {α : Scope} {x y : name} → x ∉ (α ⸴ y)  → x ∉ α
+∉-tail {α} {x} {y} x∉αy = λ p → contradiction (there p) x∉αy
+
 -- todo reorganise
 
 -- Equivalence without congruence requirements
@@ -123,6 +143,11 @@ record ScopeRenamed (α : Scope) (β : Scope) (x : name) (y : name) : Set where
     y∉α : y ∉ α
     y∈β : y ∈ β
     x≢y : x ≢ y
+
+∉original⇒∉rename : {α β : Scope} {x y z : name} → ScopeRenamed α β x y → z ≢ y → z ∉ α → z ∉ β
+∉original⇒∉rename {x = x} {z = z} rename z≢y z∉α with z ≟ₙ x
+... | yes refl = contradiction (ScopeRenamed.x∈α rename) z∉α
+... | no z≢x = (contraposition $ _⇔_.from (ScopeRenamed.equivIfNotRenamed rename z z≢x z≢y)) z∉α
 
 extendEquivalence : {α β : Scope} → (a : name) → ScopeEquivalent α β → ScopeEquivalent (α ⸴ a) (β ⸴ a)
 extendEquivalence {α} {β} a record { equiv = equiv } = record { equiv = λ a' → record { to = to ; from = from } }
@@ -175,13 +200,23 @@ mutualRenaming⇒equivalence {α} {β} {δ} {x} {y} record { equivIfNotRenamed =
       where
         a∈α = _⇔_.from (equivIfNotRenamed₂ a a≢x a≢y) a∈δ
 
---replaceInScope : (x y : name) (α : Scope) →  x ≢ y →  x ∈ α → Σ[ β ∈ Scope ] ScopeRenamed α β x y
---replaceInScope x y (α' ⸴ .x) x≢y here   = (α' ⸴ y) , (record
-  --                                                     { equivIfNotRenamed = λ a a≢x a≢y → record { to = {!!} ; from = {!!} }
-     --                                                  ; x∈α = here
-        --                                               ; x∉β = {!!}
-           --                                            ; y∉α = {!!}
-              --                                         ; y∈β = here
-                 --                                      ; x≢y = {!!}
-                    --                                   })
---replaceInScope x y (α' ⸴ z) x≢y (there x∈α') = {!!}
+replaceInScope : (x y : name) (α : Scope) →  x ≢ y →  x ∈ α → y ∉ α → UniqueScope α → Σ[ β ∈ Scope ] ScopeRenamed α β x y
+replaceInScope x y (α' ⸴ .x) x≢y here y∉α  α-uniq  = (α' ⸴ y) , (record
+                                                       { equivIfNotRenamed = λ a a≢x a≢y → record { to = to a a≢x a≢y ; from = from a a≢x a≢y }
+                                                       ; x∈α = here
+                                                       ; x∉β = λ { here → contradiction refl x≢y ; (there p) → here⇒notThere α-uniq p}
+                                                       ; y∉α = y∉α
+                                                       ; y∈β = here
+                                                       ; x≢y = x≢y
+                                                       })
+                                                       where
+                                                         to : (a : name) → a ≢ x → a ≢ y → a ∈ (α' ⸴ x) → a ∈ (α' ⸴ y)
+                                                         to a a≢x a≢y here = contradiction refl a≢x
+                                                         to a a≢x a≢y (there a∈α) = there a∈α
+
+                                                         from : (a : name) → a ≢ x → a ≢ y → a ∈ (α' ⸴ y) → a ∈ (α' ⸴ x)
+                                                         from a a≢x a≢y here = contradiction refl a≢y
+                                                         from a a≢x a≢y (there a∈α) = there a∈α
+                                                         
+replaceInScope x y (α' ⸴ z) x≢y (there x∈α') y∉α α-uniq@(uniqueScope proofsEqual) = let (β , subrename) = replaceInScope x y α' x≢y x∈α' (∉-tail y∉α) (tailUnique z α-uniq)
+  in (β ⸴ z) , (extendRenaming z (λ {refl → contradiction (proofsEqual (there x∈α') here) λ ()}) (λ {refl → contradiction here y∉α}) subrename)

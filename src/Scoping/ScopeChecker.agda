@@ -33,7 +33,8 @@ open import Lang.Term {name = AbstractName} {_≟ₙ_}
 import Scoping.Context {name = AbstractName} {_≟ₙ_} as Ctx
 import Scoping.Context {name = String} {_≟String_} as RawCtx
 open RawCtx using (_∈_; _↦_∈_; _,_↦_)
-open Ctx renaming (_∈_ to _∈'_; _↦_∈_ to _↦_∈'_; _,_↦_ to _,_↦'_)
+open Ctx renaming (_∈_ to _∈'_;  _↦_∈_ to _↦_∈'_; _,_↦_ to _,_↦'_)
+open Ctx.ScopeRenamed using (equivIfNotRenamed)
 open import Raw
 open import Raw.Erasure {abstractName = AbstractName} {_≟ₙ_} (eraseAbstractName)
 
@@ -109,19 +110,44 @@ rescopeTerm record { equiv = equiv } ((x · y) {well-scoped-x} {well-scoped-y}) 
 rescopeTerm se@record { equiv = equiv } ((`let x := t ⇒ t₁) {x-uniq}) = (`let x := (rescopeTerm se t) ⇒ (rescopeTerm (extendEquivalence x se) t₁)) {contraposition (_⇔_.from (equiv x)) x-uniq}
 rescopeTerm se@record { equiv = equiv } (`eat t) = `eat (rescopeTerm se t)
 
-α-convert : {α : Scope} (x : AbstractName) (y : AbstractName) → Term α → Σ[ β ∈ Scope ] (Term β × ScopeRenamed α β x y)
-α-convert {α} x y (` a # well-scoped-a) with a ≟ₙ x
-... | yes refl = ? , ?
-... | no a≢x = {!!}
-α-convert {α} x y (` q ` b) = {!!}
-α-convert {α} x y ` q `unit = {!!}
-α-convert {α} x y (`if t then t₁ else t₂) = {!!}
-α-convert {α} x y ` q < a , b > = {!!}
-α-convert {α} x y (`split t as a , b ⇒ t₁) = {!!}
-α-convert {α} x y (` q ƛ a :: T ⇒ t) = {!!}
-α-convert {α} x y (a · b) = {!!}
-α-convert {α} x y (`let a := t ⇒ t₁) = {!!}
-α-convert {α} x y (`eat t) = {!!}
+α-convert : {α : Scope} (x : AbstractName) (y : AbstractName) {x≢y : x ≢ y} {x∈α : x ∈' α} {y∉α : y ∉ α} → UniqueScope α → Term α → Σ[ β ∈ Scope ] (Term β × ScopeRenamed α β x y)
+α-convert {α} x y {x≢y} {x∈α} {y∉α} α-uniq (` a # well-scoped-a) with a ≟ₙ x
+... | yes refl = let (β , rename) = replaceInScope a y α x≢y x∈α y∉α α-uniq in β , (` y # Ctx.ScopeRenamed.y∈β rename) , rename
+... | no a≢x = let (β , rename) = replaceInScope x y α x≢y x∈α y∉α α-uniq in β , ((` a # _⇔_.to (equivIfNotRenamed rename a a≢x a≢y) well-scoped-a) , rename)
+  where
+    a≢y : a ≢ y
+    a≢y = λ {refl → contradiction well-scoped-a y∉α}
+α-convert {α} x y α-uniq (` q ` b) = {!!}
+α-convert {α} x y α-uniq ` q `unit = {!!}
+α-convert {α} x y α-uniq (`if t then t₁ else t₂) = {!!}
+α-convert {α} x y α-uniq ` q < a , b > = {!!}
+α-convert {α} x y {x≢y} {x∈α} {y∉α} α-uniq ((`split t as a , b ⇒ t₁) {a-uniq} {b-uniq} {a≢b}) with a ≟ₙ y | b ≟ₙ y
+... | yes refl | yes refl = contradiction refl a≢b
+... | yes refl | no _ = {!!}
+... | no _ | yes refl = {!!}
+... | no a≢y | no b≢y = let
+  (β , (t' , rename)) = α-convert x y {x≢y} {x∈α} {y∉α} α-uniq t
+  (β' , (t₁' , rename')) = α-convert {α'} x y {x≢y} {there $ there $ x∈α} {y∉α'} α'-uniq t₁
+  β'' = β ⸴ a ⸴ b
+  rename'' = extendRenaming b b≢x b≢y (extendRenaming a a≢x a≢y rename)
+  equiv = mutualRenaming⇒equivalence rename' rename''
+  in β , ((`split t' as a , b ⇒ rescopeTerm equiv t₁') {∉original⇒∉rename rename a≢y a-uniq} {∉original⇒∉rename rename b≢y b-uniq} {a≢b} , rename)
+  where
+    α' = α ⸴ a ⸴ b
+    y∉α' : y ∉ α'
+    y∉α' = λ { here → contradiction refl b≢y ; (there here) → contradiction refl a≢y ; (there (there p)) → contradiction p y∉α}
+
+    α'-uniq : UniqueScope α'
+    α'-uniq = addUnique b (addUnique a α-uniq a-uniq) (λ { here → contradiction refl a≢b ; (there p) → contradiction p b-uniq})
+
+    a≢x : a ≢ x
+    a≢x = λ {refl → contradiction x∈α a-uniq}
+    b≢x : b ≢ x
+    b≢x = λ {refl → contradiction x∈α b-uniq}
+α-convert {α} x y α-uniq (` q ƛ a :: T ⇒ t) = {!!}
+α-convert {α} x y α-uniq (a · b) = {!!}
+α-convert {α} x y α-uniq (`let a := t ⇒ t₁) = {!!}
+α-convert {α} x y α-uniq (`eat t) = {!!}
 
 --freshUniqueVar ∅ = (zero aka "?fresh") , (λ ())
 --freshUniqueVar (α ⸴ (id aka _)) = ((suc {!id ⊔ !}) aka {!!}) , {!!}
