@@ -14,7 +14,7 @@ data Term (α : Scope) : Set where
   `_`unit : Qualifier → Term α
   `if_then_else_ : Term α → Term α → Term α → Term α
   `_<_,_> : Qualifier → (x : name) → (y : name) → {x ∈ α} → {y ∈ α} → Term α
-  `split_as_,_⇒_ : Term α → (x : name) → (y : name) → Term (α ⸴ x ⸴ y) → {x ∉ α}  → {y ∉ α} → Term α
+  `split_as_,_⇒_ : Term α → (x : name) → (y : name) → Term (α ⸴ x ⸴ y) → {x ∉ α}  → {y ∉ α} → {x ≢ y} → Term α
   `_ƛ_::_⇒_ : (q : Qualifier) → (x : name) → Type → Term (α ⸴ x) → {q ≢ ord} → {x ∉ α} → Term α
   _·_ : (x : name) → (y : name) → {x ∈ α} → {y ∈ α} → Term α
   `let_:=_⇒_ : (x : name) → Term α → Term (α ⸴ x) → {x ∉ α} → Term α

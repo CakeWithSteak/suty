@@ -16,17 +16,21 @@ open import Data.Bool using (Bool)
 module _ where
   private
     variable
-      α β : Scope
+      α : Scope
       q : Qualifier
       T U : Type
       T' U' : RawType
       notord : q ≢ ord
-      t t₁ t₂ : Term α
-      tinner : Term β
-      t' t₁' t₂' tinner' : RawTerm
       x y z : abstractName
+      t t₁ t₂ : Term α
+      tinner₁ : Term (α ⸴ x)
+      tinner₂ : Term ((α ⸴ x) ⸴ y)
+      t' t₁' t₂' tinner' : RawTerm
       well-scoped-x : x ∈ α
       well-scoped-y : y ∈ α
+      x-uniq : x ∉ α
+      y-uniq : x ∉ α
+      x-not-y : x ≢ y
       b : Bool
 
   data EraseType : Type → RawType → Set where
@@ -41,10 +45,10 @@ module _ where
     EUnit : EraseTerm {α} (` q `unit) (RUnit q)
     EIf : EraseTerm t t' → EraseTerm t₁ t₁' → EraseTerm t₂ t₂' → EraseTerm (`if t then t₁ else t₂) (RIf t' t₁' t₂')
     EPair : EraseTerm {α} ((` q < x , y >) {well-scoped-x} {well-scoped-y}) (RPair q (eraseAbstractName x) (eraseAbstractName y))
-    ESplit : EraseTerm t t' → EraseTerm tinner tinner' → EraseTerm (`split t as x , y ⇒ tinner) (RSplit t' (eraseAbstractName x) (eraseAbstractName y) tinner')
-    EAbs : EraseType T T' → EraseTerm t t' → EraseTerm ((` q ƛ x :: T ⇒ t) {notord}) (RAbs q (eraseAbstractName x) T' t')
+    ESplit : EraseTerm t t' → EraseTerm tinner₂ tinner' → EraseTerm ((`split t as x , y ⇒ tinner₂) {x-uniq} {y-uniq} {x-not-y}) (RSplit t' (eraseAbstractName x) (eraseAbstractName y) tinner')
+    EAbs : EraseType T T' → EraseTerm t t' → EraseTerm ((` q ƛ x :: T ⇒ t) {notord} {x-uniq}) (RAbs q (eraseAbstractName x) T' t')
     EApp : EraseTerm {α} ((x · y) {well-scoped-x} {well-scoped-y}) (RApp (eraseAbstractName x) (eraseAbstractName y))
-    ELet : EraseTerm t t' → EraseTerm tinner tinner' → EraseTerm (`let x := t ⇒ tinner) (RLet (eraseAbstractName x) t' tinner')
+    ELet : EraseTerm t t' → EraseTerm tinner₁ tinner' → EraseTerm ((`let x := t ⇒ tinner₁) {x-uniq}) (RLet (eraseAbstractName x) t' tinner')
     EEat : EraseTerm t t' → EraseTerm (`eat t) (REat t')
 
 
