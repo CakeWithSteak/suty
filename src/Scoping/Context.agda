@@ -7,7 +7,7 @@ open import Relation.Binary.PropositionalEquality
 open import Data.Unit using (⊤; tt)
 open import Relation.Nullary using (⌊_⌋; _×-dec_; yes; no; does; _because_; of; ¬_; Dec; contradiction)
 open import Relation.Unary using (Pred) renaming (Decidable to Decidable₁)
-open import Relation.Binary using (REL; IsDecEquivalence) renaming (Decidable to Decidable₂)
+open import Relation.Binary using (REL; IsDecEquivalence; _⇒_) renaming (Decidable to Decidable₂)
 open import Data.Bool using (true; false; if_then_else_)
 open import Function.Base using (case_of_)
 open import Data.Product
@@ -60,11 +60,19 @@ data All (R : REL name V 0ℓ) : Pred (Context V) 0ℓ where
   ∅ : All R ∅
   _,_ : ∀ {x v Γ} (rest : All R Γ) (this : R x v) → All R (Γ , x ↦ v)
 
+mapAll : {A : REL name V 0ℓ} {B : REL name V 0ℓ} {Γ : Context V} → A ⇒ B → All A Γ → All B Γ
+mapAll impl ∅ = ∅
+mapAll impl (a , this) = mapAll impl a , impl this
+
 all? : {R : REL name V 0ℓ} → Decidable₂ R  → Decidable₁ (All R)
 all? r ∅ = yes ∅
 all? r (Γ , x ↦ v) with all? r Γ
 ... | no ¬a = no λ { (prev , this) → ¬a prev}
 ... | yes prev = case r x v of λ { (no ¬a) → no (λ {(prev , this) → ¬a this}) ; (yes this) → yes (prev , this)}
+
+¬all⇒∉ : {R : REL name V 0ℓ} {Γ : Context V} {x : name} {v : V} → All R Γ → ¬ R x v → ¬ (x ↦ v ∈ Γ)
+¬all⇒∉ (all , this) not-R here = contradiction this not-R
+¬all⇒∉ (all , this) not-R (there yes-elem) = ¬all⇒∉ all not-R yes-elem
 
 -- Type witnessing a deleteBinding
 infix 3  _-_↦_≡_
@@ -93,3 +101,7 @@ _≟Γ_ {V} {_≟ᵥ_} (Γ , x ↦ v) (Ω , y ↦ u) with x ≟ₙ y ×-dec v �
 
 Scope : Set
 Scope = Context ⊤
+
+replaceInScope : (x y : name) (α : Scope) → (x∈α : x ∈ α) → Σ[ β ∈ Scope ] (y ∈ β × ∀ (a : name) → a ≢ x → a ∈ α → a ∈ β)
+replaceInScope x y (α' ⸴ .x) here = (α' ⸴ y) , here , λ { a a≢x here → contradiction refl a≢x ; a a≢x (there a∈α') → there a∈α'}
+replaceInScope x y (α' ⸴ z) (there x∈α') = let (β' , y∈β' , β'-good) = replaceInScope x y α' x∈α' in  (β' ⸴ z) , (there y∈β' , λ { a a≢x here → here ; a a≢x (there a∈α') → there (β'-good a a≢x a∈α')})

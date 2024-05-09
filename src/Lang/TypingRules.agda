@@ -15,7 +15,7 @@ open import Function using (_∋_; case_of_; _$_)
 
 private
   variable
-    α : Scope
+    α β : Scope
     x y : name
     q : Qualifier
     t t₁ t₂ t₃ : Term α
@@ -48,12 +48,12 @@ data _⊢_::_,_ (Γᵢ : TypingContext) : (t : Term α) (ty : Type) (Γₒ : Typ
             ------------------------------------------------------------------------
             → Γᵢ ⊢ ` q < x , y > {p₁} {p₂} :: ` q ` T₁ `× T₂ , Γ₃
 
-  TSplit : (p₁ : x ∉ α) → (p₂ : y ∉ α)
+  TSplit : (p₁ : x ∉ α) → (p₂ : y ∉ α) → (p₃ : x ≢ y)
               →  Γᵢ ⊢ t₁ :: ` q ` T₁ `× T₂ , Γ₂
               → ((Γ₂ , x ↦ T₁) , y ↦ T₂) ⊢ t₂ :: T , Γ₃
               → Γ₃ ÷ (∅ , x ↦ T₁) , y ↦ T₂ ≡ Γ₄
               ------------------------------------------------------------------------
-              → Γᵢ ⊢ (`split t₁ as x , y ⇒ t₂) {p₁} {p₂} :: T , Γ₄
+              → Γᵢ ⊢ (`split t₁ as x , y ⇒ t₂) {p₁} {p₂} {p₃} :: T , Γ₄
 
   TLet : (p : x ∉ α)
            → Γᵢ ⊢ t₁ :: T₁ , Γ₂
@@ -104,7 +104,7 @@ typing-unique (TEat a) (TEat b) = refl , proj₂ (typing-unique a b)
 typing-unique (TPair _ _ left₁ right₁ _ _) (TPair _ _ left₂ right₂ _ _) with typing-unique left₁ left₂
 ... | (refl , refl) with typing-unique right₁ right₂
 ...   | (refl , refl) = refl , refl 
-typing-unique (TSplit _ _ arg₁ body₁ div₁) (TSplit _ _ arg₂ body₂ div₂) with typing-unique arg₁ arg₂
+typing-unique (TSplit _ _ _ arg₁ body₁ div₁) (TSplit _ _ _ arg₂ body₂ div₂) with typing-unique arg₁ arg₂
 ... | (refl , refl) with typing-unique body₁ body₂
 ...   | (refl , refl) with ÷-unique div₁ div₂
 ...     | refl = refl , refl
