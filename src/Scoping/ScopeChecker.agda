@@ -111,21 +111,11 @@ rescopeTerm se@record { equiv = equiv } ((`let x := t ⇒ t₁) {x-uniq}) = (`le
 rescopeTerm se@record { equiv = equiv } (`eat t) = `eat (rescopeTerm se t)
 
 α-convert : {α : Scope} (x : AbstractName) (y : AbstractName) {x≢y : x ≢ y} {x∈α : x ∈' α} {y∉α : y ∉ α} → UniqueScope α → Term α → Σ[ β ∈ Scope ] (Term β × ScopeRenamed α β x y)
-α-convert {α} x y {x≢y} {x∈α} {y∉α} α-uniq (` a # well-scoped-a) with a ≟ₙ x
-... | yes refl = let (β , rename) = replaceInScope a y α x≢y x∈α y∉α α-uniq in β , (` y # Ctx.ScopeRenamed.y∈β rename) , rename
-... | no a≢x = let (β , rename) = replaceInScope x y α x≢y x∈α y∉α α-uniq in β , ((` a # _⇔_.to (equivIfNotRenamed rename a a≢x a≢y) well-scoped-a) , rename)
-  where
-    a≢y : a ≢ y
-    a≢y = λ {refl → contradiction well-scoped-a y∉α}
-α-convert {α} x y α-uniq (` q ` b) = {!!}
-α-convert {α} x y α-uniq ` q `unit = {!!}
-α-convert {α} x y α-uniq (`if t then t₁ else t₂) = {!!}
-α-convert {α} x y α-uniq ` q < a , b > = {!!}
-α-convert {α} x y {x≢y} {x∈α} {y∉α} α-uniq ((`split t as a , b ⇒ t₁) {a-uniq} {b-uniq} {a≢b}) with a ≟ₙ y | b ≟ₙ y
-... | yes refl | yes refl = contradiction refl a≢b
-... | yes refl | no _ = {!!}
-... | no _ | yes refl = {!!}
-... | no a≢y | no b≢y = let
+
+private α-convert-split :  {α : Scope} (x : AbstractName) (y : AbstractName) {x≢y : x ≢ y} {x∈α : x ∈' α} {y∉α : y ∉ α} → UniqueScope α
+                        → (t : Term α) → (a b : AbstractName) → a ≢ y → b ≢ y → (t₁ : Term (α ⸴ a ⸴ b)) → a ∉ α → b ∉ α → a ≢ b -- parts of the split term: `split t as a , b ⇒ t₁ {a-uniq} {b-uniq} {a≢b}
+                        → Σ[ β ∈ Scope ] (Term β × ScopeRenamed α β x y)
+α-convert-split {α} x y {x≢y} {x∈α} {y∉α} α-uniq t a b a≢y b≢y t₁ a-uniq b-uniq a≢b = let
   (β , (t' , rename)) = α-convert x y {x≢y} {x∈α} {y∉α} α-uniq t
   (β' , (t₁' , rename')) = α-convert {α'} x y {x≢y} {there $ there $ x∈α} {y∉α'} α'-uniq t₁
   β'' = β ⸴ a ⸴ b
@@ -144,6 +134,25 @@ rescopeTerm se@record { equiv = equiv } (`eat t) = `eat (rescopeTerm se t)
     a≢x = λ {refl → contradiction x∈α a-uniq}
     b≢x : b ≢ x
     b≢x = λ {refl → contradiction x∈α b-uniq}
+
+α-convert {α} x y {x≢y} {x∈α} {y∉α} α-uniq (` a # well-scoped-a) with a ≟ₙ x
+... | yes refl = let (β , rename) = replaceInScope a y α x≢y x∈α y∉α α-uniq in β , (` y # Ctx.ScopeRenamed.y∈β rename) , rename
+... | no a≢x = let (β , rename) = replaceInScope x y α x≢y x∈α y∉α α-uniq in β , ((` a # _⇔_.to (equivIfNotRenamed rename a a≢x a≢y) well-scoped-a) , rename)
+  where
+    a≢y : a ≢ y
+    a≢y = λ {refl → contradiction well-scoped-a y∉α}
+α-convert {α} x y α-uniq (` q ` b) = {!!}
+α-convert {α} x y α-uniq ` q `unit = {!!}
+α-convert {α} x y α-uniq (`if t then t₁ else t₂) = {!!}
+α-convert {α} x y α-uniq ` q < a , b > = {!!}
+α-convert {α} x y {x≢y} {x∈α} {y∉α} α-uniq ((`split t as a , b ⇒ t₁) {a-uniq} {b-uniq} {a≢b}) with a ≟ₙ y | b ≟ₙ y
+... | yes refl | yes refl = contradiction refl a≢b
+... | yes refl | no b≢y = let
+  (fresh , fresh∉α) = freshUniqueVar α
+  (β , (t₁' , rename-y)) = α-convert y fresh {{!!}} {there here} {{!!}} {!!} t₁
+  in {!!}
+... | no _ | yes refl = {!!}
+... | no a≢y | no b≢y = α-convert-split x y {x≢y} {x∈α} {y∉α} α-uniq t a b a≢y b≢y t₁ a-uniq b-uniq a≢b
 α-convert {α} x y α-uniq (` q ƛ a :: T ⇒ t) = {!!}
 α-convert {α} x y α-uniq (a · b) = {!!}
 α-convert {α} x y α-uniq (`let a := t ⇒ t₁) = {!!}
@@ -239,5 +248,5 @@ scopeCheck t = {!f t RawCtx.∅ zero RawCtx.All.∅!}
     f (RLet x t tinner) subs α max α-lt-max subs-cons with f t subs α max α-lt-max subs-cons | f tinner (subs , x ↦ (max aka x)) (α ⸴ (max aka x)) (suc max) (mapAll m<n⇒m<1+n α-lt-max , n<1+n max) (extendSubsConsistency subs-cons)
     ... | yes (t' , t-erasure) | yes (tinner' , tinner-erasure) = yes ((`let max aka x := t' ⇒ tinner') {¬all⇒∉ α-lt-max (n≮n max)}, (ELet t-erasure tinner-erasure))
     ... | no t-bad | _ = no λ { ((`let _ := t' ⇒ _)  , ELet t-good _) → contradiction (t' , t-good) t-bad}
-    ... | _ | no tinner-bad = no λ { ((`let (id aka .x) := t' ⇒ tinner') , ELet _ tinner-good) → contradiction ({!`let (max aka x) := t' ⇒ tinner'!} , {!!}) tinner-bad}
+    ... | _ | no tinner-bad = no λ { ((`let (id aka .x) := t' ⇒ tinner') , ELet _ tinner-good) → contradiction (({!tinner'!}) , {!!}) tinner-bad}
     f (REat t) subs α max α-lt-max subs-cons = {!!}

@@ -1,15 +1,16 @@
+{-# OPTIONS --allow-unsolved-metas #-}
 open import Relation.Binary.Definitions using (DecidableEquality)
 open import Level
 
 module Scoping.Context {name : Set} {_≟ₙ_ : DecidableEquality name} where
 
 open import Relation.Binary.PropositionalEquality
-open import Data.Unit using (⊤; tt)
+open import Data.Unit using (⊤; tt) renaming (_≟_ to _≟⊤_)
 open import Relation.Nullary using (⌊_⌋; _×-dec_; yes; no; does; _because_; of; ¬_; Dec; contradiction; contraposition)
 open import Relation.Unary using (Pred) renaming (Decidable to Decidable₁)
 open import Relation.Binary using (REL; IsDecEquivalence; _⇒_) renaming (Decidable to Decidable₂)
 open import Data.Bool using (true; false; if_then_else_)
-open import Function.Base using (case_of_; _$_)
+open import Function.Base using (case_of_; _$_; _∋_)
 open import Data.Product
 open import Data.Sum
 open import Data.Empty
@@ -85,6 +86,12 @@ deleteBinding-unique (deleteHere _ _ _) (deleteHere _ _ _) = refl
 deleteBinding-unique (deleteHere _ _ _) (deleteThere _ _ _ _ noteq _) = contradiction (refl , refl) noteq
 deleteBinding-unique (deleteThere _ _ _ _ noteq _) (deleteHere _ _ _) = contradiction (refl , refl) noteq
 deleteBinding-unique (deleteThere _ _ _ _ _ sub₁) (deleteThere _ _ _ _ _ sub₂) = case deleteBinding-unique sub₁ sub₂ of λ {refl → refl}
+
+deleteBinding-preserves-others : ∀ {x V Γ Γ'} {v : V} → Γ - x ↦ v ≡ Γ' → ∀ a b → a ≢ x → a ↦ b ∈ Γ → a ↦ b ∈ Γ'
+deleteBinding-preserves-others (deleteHere _ _ _) _ _ a≢x here = contradiction refl a≢x
+deleteBinding-preserves-others (deleteHere _ _ _) a b a≢x (there ab∈Γ) = ab∈Γ
+deleteBinding-preserves-others (deleteThere Γ _ _ Γ' x del) a b a≢x here = here
+deleteBinding-preserves-others (deleteThere Γ _ _ Γ' x del) a b a≢x  (there ab∈Γ) = there (deleteBinding-preserves-others del a b a≢x ab∈Γ)
 
 deleteBinding :  {V : Set} {_≟ᵥ_ : DecidableEquality V} (Γ : Context V) (x : name) (v : V) → x ↦ v ∈ Γ → Σ[ Γ' ∈ Context V ] (Γ - x ↦ v ≡ Γ')
 deleteBinding {V} {_≟ᵥ_} (Γ , y ↦ u) x v elem with y ≟ₙ x ×-dec u ≟ᵥ v
@@ -199,6 +206,19 @@ mutualRenaming⇒equivalence {α} {β} {δ} {x} {y} record { equivIfNotRenamed =
     ... | no a≢x | no a≢y = _⇔_.to (equivIfNotRenamed₁ a a≢x a≢y) a∈α
       where
         a∈α = _⇔_.from (equivIfNotRenamed₂ a a≢x a≢y) a∈δ
+
+renamingTail : {α β : Scope} {x y a : name} → ScopeRenamed α (β ⸴ a) x y → a ≢ x → a ≢ y → Σ[ α' ∈ Scope ] (ScopeEquivalent α (α' ⸴ a) × ScopeRenamed α' β x y)
+renamingTail {α} {β} {x} {y} {a} rename a≢x a≢y = let
+  a∈α = (_⇔_.from $ ScopeRenamed.equivIfNotRenamed rename a a≢x a≢y) here 
+  (α' , α'-proof) = deleteBinding {_≟ᵥ_ = _≟⊤_} α a tt a∈α
+  α≈α'a = record {
+    equiv = λ n → record {
+      to = λ n∈α → case n ≟ₙ a of λ { (yes refl) → here; (no n≢a) → there $ deleteBinding-preserves-others α'-proof n tt n≢a n∈α };
+      from = {!!}
+      }
+    }
+  in {!!}
+  where
 
 replaceInScope : (x y : name) (α : Scope) →  x ≢ y →  x ∈ α → y ∉ α → UniqueScope α → Σ[ β ∈ Scope ] ScopeRenamed α β x y
 replaceInScope x y (α' ⸴ .x) x≢y here y∉α  α-uniq  = (α' ⸴ y) , (record
