@@ -102,6 +102,3 @@ _≟Γ_ {V} {_≟ᵥ_} (Γ , x ↦ v) (Ω , y ↦ u) with x ≟ₙ y ×-dec v �
 Scope : Set
 Scope = Context ⊤
 
-replaceInScope : (x y : name) (α : Scope) → (x∈α : x ∈ α) → Σ[ β ∈ Scope ] (y ∈ β × ∀ (a : name) → a ≢ x → a ∈ α → a ∈ β)
-replaceInScope x y (α' ⸴ .x) here = (α' ⸴ y) , here , λ { a a≢x here → contradiction refl a≢x ; a a≢x (there a∈α') → there a∈α'}
-replaceInScope x y (α' ⸴ z) (there x∈α') = let (β' , y∈β' , β'-good) = replaceInScope x y α' x∈α' in  (β' ⸴ z) , (there y∈β' , λ { a a≢x here → here ; a a≢x (there a∈α') → there (β'-good a a≢x a∈α')})
