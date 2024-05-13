@@ -12,22 +12,7 @@ open import Data.Product
 open import Data.Sum
 open import Function using (_$_; _∋_)
 open import Lang.Qualifier
-
-record AbstractName : Set where
-  constructor _aka_
-  field
-    id : ℕ 
-    humanReadable : String
-
-_≟ₙ_ : DecidableEquality AbstractName
-(id aka humanReadable) ≟ₙ (id₁ aka humanReadable₁) with id ≟ℕ id₁ | humanReadable ≟String humanReadable₁
-... | yes refl | yes refl = yes refl
-... | no id-not-eq | _ = no (λ { refl → contradiction refl id-not-eq})
-... | _ | no human-not-eq = no (λ { refl → contradiction refl human-not-eq})
-
-eraseAbstractName : AbstractName → String
-eraseAbstractName n = AbstractName.humanReadable n
-
+open import Lang using (AbstractName; _aka_;  _≟ₙ_; eraseAbstractName)
 open import Lang.Type
 open import Lang.Term {name = AbstractName} {_≟ₙ_}
 import Scoping.Context {name = AbstractName} {_≟ₙ_} as Ctx
