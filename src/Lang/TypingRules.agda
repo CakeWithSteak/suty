@@ -27,6 +27,7 @@ data _⊢_::_,_ (Γᵢ : TypingContext) : (t : Term α) (ty : Type) (Γₒ : Typ
   TUVar : (p : x ∈ α) → (elem : x ↦ T ∈* Γᵢ) →  (qualifierOf T ≡ un) → Γᵢ ⊢ (` x # p) :: T , Γᵢ
   TLVar : (p : x ∈ α) → (elem : x ↦ T ∈* Γᵢ) → (qualifierOf T ≡ lin) → (Γₒ : TypingContext) → Γᵢ - x ↦ T ≡ Γₒ → Γᵢ ⊢ (` x # p) :: T , Γₒ
   TOVar : (p : x ∈ α) → (elem : x ↦ T ∈* Γᵢ) → (qualifierOf T ≡ ord) → (Γₒ : TypingContext) → Γᵢ - x ↦ T ≡ Γₒ → Γᵢ ⊢ (` x # p) :: T , Γₒ
+  TAVar : (p : x ∈ α) → (elem : x ↦ T ∈* Γᵢ) → (qualifierOf T ≡ aff) → (Γₒ : TypingContext) →  Γᵢ - x ↦ T ≡ Γₒ → Γᵢ ⊢ (` x # p) :: T , Γₒ
 
   TBool :  {b : Bool} → Γᵢ ⊢ (Term α ∋ ` q ` b ) :: ` q `Bool , Γᵢ
   TUnit : Γᵢ ⊢ (Term α ∋ ` q `unit) :: ` q `Unit , Γᵢ
@@ -96,6 +97,17 @@ typing-unique a@(TOVar _ _ _ _ _) b@(TUVar _ _ _) = Data.Product.map sym sym $ t
 typing-unique a@(TOVar _ _ _ _ _) b@(TLVar _ _ _ _ _) = Data.Product.map sym sym $ typing-unique b a
 typing-unique (TOVar p elem _ _ Γ'₁-proof) (TOVar .p elem₁ _ _ Γ'₂-proof) =
   case ∈*-unique elem elem₁ of λ {refl → refl , deleteBinding-unique Γ'₁-proof Γ'₂-proof}
+typing-unique (TAVar p elem _ _ Γ'₁-proof) (TAVar .p elem₁ _ _ Γ'₂-proof) =
+  case ∈*-unique elem elem₁ of λ {refl → refl , deleteBinding-unique Γ'₁-proof Γ'₂-proof}
+typing-unique (TUVar p elem is-un) (TAVar p elem₁ is-aff _ _) =
+  case ∈*-unique elem elem₁ of λ {refl → contradiction (trans (sym is-aff) is-un) λ () }
+typing-unique (TLVar p elem is-lin _ _) (TAVar p elem₁ is-aff _ _) =
+  case ∈*-unique elem elem₁ of λ {refl → contradiction (trans (sym is-aff) is-lin) λ () }
+typing-unique (TOVar p elem is-ord _ _) (TAVar p elem₁ is-aff _ _) =
+  case ∈*-unique elem elem₁ of λ {refl → contradiction (trans (sym is-aff) is-ord) λ () }
+typing-unique a@(TAVar _ _ _ _ _) b@(TUVar _ _ _) = Data.Product.map sym sym $ typing-unique b a
+typing-unique a@(TAVar _ _ _ _ _) b@(TLVar _ _ _ _ _) = Data.Product.map sym sym $ typing-unique b a
+typing-unique a@(TAVar _ _ _ _ _) b@(TOVar _ _ _ _ _) = Data.Product.map sym sym $ typing-unique b a
 typing-unique TBool TBool = refl , refl
 typing-unique TUnit TUnit = refl , refl
 typing-unique (TIf cond-bool₁ left-T₁ right-T₁) (TIf cond-bool₂ left-T₂ right-T₂) with typing-unique cond-bool₁ cond-bool₂
