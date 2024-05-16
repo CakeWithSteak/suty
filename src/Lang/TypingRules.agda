@@ -5,7 +5,7 @@ open import Scoping.Context {name} {_≟ₙ_}
 open import Lang.Type
 open import Lang.Term {name} {_≟ₙ_}
 open import Lang.TypingContext {name} {_≟ₙ_}
-open import Lang.Qualifier hiding (trans)
+open import Lang.Qualifier
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; trans; sym)
 open import Relation.Nullary.Negation using (contradiction; ¬_)
 open import Relation.Nullary.Decidable
