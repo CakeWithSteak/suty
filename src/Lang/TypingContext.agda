@@ -7,15 +7,16 @@ open import Lang.Qualifier
 open import Scoping.Context {name} {_≟ₙ_}
 open import Data.Bool using (if_then_else_)
 open import Relation.Nullary.Decidable
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl)
+open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; sym; trans)
 open import Relation.Binary using (REL)
 open import Data.Bool
-open import Function.Base using (case_of_)
+open import Function.Base using (case_of_; _$_)
 open import Relation.Nullary.Negation using (¬_; contradiction)
 open import Relation.Unary using (Pred)
 open import Function.Bundles using (_⇔_)
 open import Data.Product
 open import Level
+open import Data.Sum
 
 TypingContext : Set
 TypingContext = Context Type
@@ -80,34 +81,73 @@ data _÷_≡_ : TypingContext → TypingContext → TypingContext → Set where
                                                                              Γ₃ - x ↦ t ≡ Γ₄  → -- Result context Γ₄ must be Γ₃ but with the x ↦ t binding deleted
                                                                              Γ₁ ÷ (Γ₂ , x ↦ t) ≡ Γ₄
 
+  -- For aff qualified types, we allow them to both be in the returned context (in which case we remove them, see above) or not, as they may or may not be used
+  divAffUsed : ∀ {x t Γ₁ Γ₂ Γ₃} → Γ₁ ÷ Γ₂ ≡ Γ₃ → qualifierOf t ≡ aff → x ↦ t ∉* Γ₃ → Γ₁ ÷ (Γ₂ , x ↦ t) ≡ Γ₃
+  divAffNotUsed : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄} → Γ₁ ÷ Γ₂ ≡ Γ₃ → qualifierOf t ≡ aff → x ↦ t ∈* Γ₃ → Γ₃ - x ↦ t ≡ Γ₄  → Γ₁ ÷ (Γ₂ , x ↦ t) ≡ Γ₄
+
   -- For lin/ord qualified types, we enforce usage by requiring that the returned context does not contain them
-  divMustuse : ∀ {x t Γ₁ Γ₂ Γ₃} → Γ₁ ÷ Γ₂ ≡ Γ₃ → qualifierOf t ≢ un →  x ↦ t ∉* Γ₃ → Γ₁ ÷ (Γ₂ , x ↦ t) ≡ Γ₃
+  divMustuse : ∀ {x t Γ₁ Γ₂ Γ₃} → Γ₁ ÷ Γ₂ ≡ Γ₃ → (qualifierOf t ≡ lin  ⊎ qualifierOf t ≡ ord) →  x ↦ t ∉* Γ₃ → Γ₁ ÷ (Γ₂ , x ↦ t) ≡ Γ₃
 
 ÷-unique : ∀ {Γ₁ Γ₂ Γ₃ Γ₄} → Γ₁ ÷ Γ₂ ≡ Γ₃ → Γ₁ ÷ Γ₂ ≡ Γ₄ → Γ₃ ≡ Γ₄
 ÷-unique (divEmpty _) (divEmpty _) = refl
 ÷-unique (divUn sub₁ _ _ sub-gives-res₁) (divUn  sub₂ _ _ sub-gives-res₂) = case ÷-unique sub₁ sub₂ of λ { refl → deleteBinding-unique sub-gives-res₁ sub-gives-res₂ }
-÷-unique (divUn _ t-un _ _) (divMustuse _ t-not-un _) = contradiction t-un t-not-un
-÷-unique (divMustuse _ t-not-un _) (divUn _ t-un _ _) = contradiction t-un t-not-un
+÷-unique (divUn _ t-un _ _) (divMustuse _ t-lin-ord _) = [ (λ t-lin → case trans (sym t-lin) t-un of λ ()) , ((λ t-ord → case trans (sym t-ord) t-un of λ ()) ) ] t-lin-ord
+÷-unique (divMustuse _ t-lin-ord _) (divUn _ t-un _ _) = [ (λ t-lin → case trans (sym t-lin) t-un of λ ()) , ((λ t-ord → case trans (sym t-ord) t-un of λ ()) ) ] t-lin-ord
 ÷-unique (divMustuse sub₁ _ _) (divMustuse sub₂ _ _) = ÷-unique sub₁ sub₂
+÷-unique (divAffUsed sub₁ _ _) (divAffUsed sub₂ _ _) = ÷-unique sub₁ sub₂
+÷-unique (divAffNotUsed sub₁ _ _ sub-gives-res₁) (divAffNotUsed sub₂ _ _ sub-gives-res₂) = case ÷-unique sub₁ sub₂ of λ {refl → deleteBinding-unique sub-gives-res₁ sub-gives-res₂}
+÷-unique (divAffUsed sub₁ _ not-in-res) (divAffNotUsed sub₂ _ in-res _) = case ÷-unique sub₁ sub₂ of λ {refl → contradiction in-res not-in-res}
+÷-unique (divUn _ t-un _ _) (divAffUsed _ t-aff _) = contradiction (trans (sym t-aff) t-un) (λ ())
+÷-unique (divUn x t-un x₂ x₃) (divAffNotUsed x₄ t-aff x₆ x₇) = contradiction (trans (sym t-aff) t-un) (λ ())
+÷-unique (divAffUsed x t-aff x₂) (divUn x₃ t-un x₅ x₆) = contradiction (trans (sym t-aff) t-un) (λ ())
+÷-unique (divAffUsed x t-aff x₂) (divMustuse x₃ t-lin-ord x₅) =  [ (λ t-lin → case trans (sym t-lin) t-aff of λ ()) , ((λ t-ord → case trans (sym t-ord) t-aff of λ ()) ) ] t-lin-ord
+÷-unique a@(divAffNotUsed x x₁ x₂ x₃) b@(divUn x₄ x₅ x₆ x₇) = sym $ ÷-unique b a
+÷-unique (divAffNotUsed sub₂ _ in-res _) (divAffUsed sub₁ _ not-in-res) = case ÷-unique sub₁ sub₂ of λ {refl → contradiction in-res not-in-res}
+÷-unique (divAffNotUsed x t-aff x₂ x₃) (divMustuse x₄ t-lin-ord x₆) = [ (λ t-lin → case trans (sym t-lin) t-aff of λ ()) , ((λ t-ord → case trans (sym t-ord) t-aff of λ ()) ) ] t-lin-ord
+÷-unique a@(divMustuse x x₁ x₂) b@(divAffUsed x₃ x₄ x₅) = sym $ ÷-unique b a
+÷-unique a@(divMustuse x x₁ x₂) b@(divAffNotUsed x₃ x₄ x₅ x₆) = sym $ ÷-unique b a
 
 divideContext : (Γ₁ : TypingContext) (Γ₂ : TypingContext) → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ÷ Γ₂ ≡ Γ₃)
 divideContext Γ₁ ∅ = yes (Γ₁ , divEmpty Γ₁)
-divideContext Γ₁ (Γ₂ , x ↦ T) with divideContext Γ₁ Γ₂ | qualifierOf T ≟q un
-... | no nosub | _ = no λ { (Γ₄ , divUn {Γ₃ = Γ₃} sub _ _ _) → nosub (Γ₃ , sub) ; (Γ₃ , divMustuse sub _ _) → nosub (Γ₃ , sub)}
-... | yes (Γ₃ , sub) | yes T-is-un  = case x ↦ T ∈*? Γ₃ of λ {
-  (no not-elem) → no λ {
-    (Γ₄ , divUn  sub' _ elem _) → case ÷-unique sub sub' of λ {refl → contradiction elem not-elem} ;
-    (Γ₄ , divMustuse _ T-not-un _) → contradiction T-is-un T-not-un
-    } ;
-  (yes elem) → case deleteBinding {Type} {_≟ₜ_} Γ₃ x T (∈*⇒∈ elem) of λ { (Γ₄ , pdiff) → yes (Γ₄ , divUn sub T-is-un elem pdiff)}
-  }
-... | yes (Γ₃ , sub) | no T-not-un = case x ↦ T ∈*? Γ₃  of λ {
-  (no not-elem) → yes (Γ₃ , (divMustuse sub T-not-un not-elem));
-  (yes elem) → no λ {
-    (Γ₄ , divUn _ T-un _ _) → contradiction T-un T-not-un;
-    (Γ₄ , divMustuse sub' _ not-elem) → case ÷-unique sub sub' of λ {refl → contradiction elem not-elem}
-    }
-  }
+divideContext Γ₁ (Γ₂ , x ↦ T) with divideContext Γ₁ Γ₂
+... | no nosub = no λ {
+  (Γ₄ , divUn {Γ₃ = Γ₃} sub _ _ _) → contradiction (Γ₃ , sub) nosub ;
+  (Γ₃ , divAffUsed sub _ _) → contradiction (Γ₃ , sub) nosub ;
+  (Γ₄ , divAffNotUsed {Γ₃ = Γ₃} sub _ _ _) → contradiction (Γ₃ , sub) nosub ;
+  (Γ₃ , divMustuse sub _ _) → contradiction (Γ₃ , sub) nosub}
+... | yes (Γ₃ , sub) = qualifierCases T div-un div-lin div-ord div-aff
+  where
+    div-un : qualifierOf T ≡ un → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ÷ (Γ₂ , x ↦ T) ≡ Γ₃)
+    div-lin : qualifierOf T ≡ lin → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ÷ (Γ₂ , x ↦ T) ≡ Γ₃)
+    div-ord : qualifierOf T ≡ ord → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ÷ (Γ₂ , x ↦ T) ≡ Γ₃)
+    div-aff : qualifierOf T ≡ aff → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ÷ (Γ₂ , x ↦ T) ≡ Γ₃)
+    div-lin-ord : (qualifierOf T ≡ lin) ⊎ (qualifierOf T ≡ ord) → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ÷ (Γ₂ , x ↦ T) ≡ Γ₃)
+
+    div-un T-un with x ↦ T ∈*? Γ₃
+    ... | no not-elem = no λ {
+      (Γ₄ , divUn sub' _ elem _) → case ÷-unique sub sub' of λ {refl → contradiction elem not-elem} ;
+      (Γ₄ , divAffUsed _ T-aff _) → contradiction (trans (sym T-aff) T-un) (λ ()) ;
+      (Γ₄ , divAffNotUsed _ T-aff _ _) → contradiction (trans (sym T-aff) T-un) (λ ()) ;
+      (Γ₄ , divMustuse _ T-lin-ord _) → [ (λ T-lin → case trans (sym T-lin) T-un of λ ()) , ((λ T-ord → case trans (sym T-ord) T-un of λ ()) ) ] T-lin-ord}
+    ... | yes elem with deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ₃ x T (∈*⇒∈ elem)
+    ... | Γ₄ , Γ₄-proof = yes (Γ₄ , (divUn sub T-un elem Γ₄-proof))
+
+    div-lin T-lin = div-lin-ord $ inj₁ T-lin
+    div-ord T-ord = div-lin-ord $ inj₂ T-ord
+
+    div-lin-ord T-lin-ord with x ↦ T ∈*? Γ₃
+    ... | yes elem = no λ {
+      (Γ₄ , divUn p T-un x₁ x₂) → [ (λ T-lin → case trans (sym T-lin) T-un of λ ()) , ((λ T-ord → case trans (sym T-ord) T-un of λ ()) ) ] T-lin-ord ;
+      (Γ₄ , divAffUsed p T-aff x₁) → [ (λ T-lin → case trans (sym T-lin) T-aff of λ ()) , ((λ T-ord → case trans (sym T-ord) T-aff of λ ()) ) ] T-lin-ord  ;
+      (Γ₄ , divAffNotUsed p T-aff x₁ x₂) → [ (λ T-lin → case trans (sym T-lin) T-aff of λ ()) , ((λ T-ord → case trans (sym T-ord) T-aff of λ ()) ) ] T-lin-ord  ;
+      (Γ₄ , divMustuse sub' _ not-elem) → case ÷-unique sub sub' of λ {refl → contradiction elem not-elem}  }
+    ... | no not-elem = yes (Γ₃ , divMustuse sub T-lin-ord not-elem)
+
+    div-aff T-aff with x ↦ T ∈*? Γ₃
+    ... | no not-elem = yes (Γ₃ , divAffUsed sub T-aff not-elem)
+    ... | yes elem with deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ₃ x T (∈*⇒∈ elem)
+    ... | Γ₄ , Γ₄-proof = yes (Γ₄ , divAffNotUsed sub T-aff elem Γ₄-proof)
+   
   
 _⟨⟨_⟩⟩ : REL Qualifier TypingContext 0ℓ
 q ⟨⟨ Γ ⟩⟩ = All (λ _ ty → q ⟨ ty ⟩) Γ
