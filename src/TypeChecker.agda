@@ -25,11 +25,16 @@ TypecheckResult Γ t =  Dec (Σ (Type × TypingContext) λ { (T , Γ') → Γ �
 
 typeOf : (Γ : TypingContext) → (t : Term α) → TypecheckResult Γ t
 typeOf Γ (` x # well-scoped) with typeLookup Γ x
-...  | no not-elem = no (λ { ((ty , _) , TUVar .well-scoped elem _) → contradiction (ty , elem) not-elem ; ((ty , _) , TLVar .well-scoped elem _ _ _) → contradiction (ty , elem) not-elem ; ((ty , _) , TOVar .well-scoped elem _ _ _) → contradiction (ty , elem) not-elem})
+...  | no not-elem = no (λ {
+  ((ty , _) , TUVar .well-scoped elem _) → contradiction (ty , elem) not-elem ;
+  ((ty , _) , TLVar .well-scoped elem _ _ _) → contradiction (ty , elem) not-elem ;
+  ((ty , _) , TOVar .well-scoped elem _ _ _) → contradiction (ty , elem) not-elem ;
+  ((ty , _) , TAVar .well-scoped elem _ _ _) → contradiction (ty , elem) not-elem})
 ...  | yes (ty , elem) = yes $ qualifierCases ty
            (λ is-un → (ty , Γ) , (TUVar well-scoped elem is-un))
            (λ is-lin → let (Γ' , Γ'-proof) = deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ x ty (∈*⇒∈ elem) in  (ty , Γ') , TLVar well-scoped elem is-lin Γ' Γ'-proof)
            (λ is-ord → let (Γ' , Γ'-proof) = deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ x ty (∈*⇒∈ elem) in  (ty , Γ') , TOVar well-scoped elem is-ord Γ' Γ'-proof)
+          (λ is-aff → let (Γ' , Γ'-proof) = deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ x ty (∈*⇒∈ elem) in (ty , Γ') , TAVar well-scoped elem is-aff Γ' Γ'-proof)
 typeOf Γ (` q ` b) = yes ((` q `Bool , Γ) , TBool)
 typeOf Γ (` q `unit) = yes ((` q `Unit , Γ) , TUnit)
 typeOf Γ (`if t₁ then t₂ else t₃) with typeOf Γ t₁
