@@ -26,6 +26,7 @@ data Context (V : Set) : Set where
 infix 4  _,_↦_
 infixl 4 _⸴_
 infix 4 _↦_∈_
+infix 4 _↦_∉_
 
 -- NB this is a raised comma (\, number 4) so as not to conflict with pairs
 pattern _⸴_ Γ x = (Γ , x ↦ _)
@@ -39,6 +40,9 @@ _∈_ x Γ = x ↦ tt ∈ Γ
 
 _∉_ : name → Context ⊤ → Set
 _∉_ x Γ = ¬ (x ↦ tt ∈ Γ)
+
+_↦_∉_ : name → V → Context V → Set
+x ↦ v ∉ Γ = ¬ (x ↦ v ∈ Γ)
 
 _↦_∈?_ : (x : name) (v : V) (Γ : Context V) {_≟ᵥ_ : DecidableEquality V} → Dec (x ↦ v ∈ Γ)
 x ↦ v ∈? ∅ = no (λ ())

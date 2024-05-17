@@ -7,16 +7,16 @@ open import Lang.Qualifier
 open import Scoping.Context {name} {_≟ₙ_}
 open import Data.Bool using (if_then_else_)
 open import Relation.Nullary.Decidable
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; sym; trans)
+open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; sym; trans; cong)
 open import Relation.Binary using (REL)
 open import Data.Bool
 open import Function.Base using (case_of_; _$_)
 open import Relation.Nullary.Negation using (¬_; contradiction)
 open import Relation.Unary using (Pred)
-open import Function.Bundles using (_⇔_)
 open import Data.Product
 open import Level
 open import Data.Sum
+open import Data.Empty
 
 TypingContext : Set
 TypingContext = Context Type
@@ -147,8 +147,49 @@ divideContext Γ₁ (Γ₂ , x ↦ T) with divideContext Γ₁ Γ₂
     ... | no not-elem = yes (Γ₃ , divAffUsed sub T-aff not-elem)
     ... | yes elem with deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ₃ x T (∈*⇒∈ elem)
     ... | Γ₄ , Γ₄-proof = yes (Γ₄ , divAffNotUsed sub T-aff elem Γ₄-proof)
-   
-  
+
+-- Affine context intersection: non-affine variables must appear in both contexts, while affine can appear in only one (in which case they are dropped) or both (in whcih case they are kept)
+data _∩ₐ_≡_ : TypingContext → TypingContext → TypingContext → Set where
+  intersectEmptyR : ∀ {Γ} → Γ ∩ₐ ∅ ≡ ∅
+  intersectEmptyL : ∀ {Γ} → ∅ ∩ₐ Γ ≡ ∅
+  intersectNonAffine : ∀ {Γ₁ Γ₂ Γ x T} → qualifierOf T ≢ aff → Γ₁ ∩ₐ Γ₂ ≡ Γ → x ↦ T ∈ Γ₁  → Γ₁ ∩ₐ (Γ₂ , x ↦ T) ≡ (Γ , x ↦ T)
+  intersectAffineKeep : ∀  {Γ₁ Γ₂ Γ x T} → qualifierOf T ≡ aff →  Γ₁ ∩ₐ Γ₂ ≡ Γ → x ↦ T ∈ Γ₁ → Γ₁ ∩ₐ (Γ₂ , x ↦ T) ≡ (Γ , x ↦ T)
+  intersectAffineDrop : ∀  {Γ₁ Γ₂ Γ x T} → qualifierOf T ≡ aff →  Γ₁ ∩ₐ Γ₂ ≡ Γ → x ↦ T ∉ Γ₁ → Γ₁ ∩ₐ (Γ₂ , x ↦ T) ≡ Γ
+
+affineIntersection : (Γ₁ Γ₂ : TypingContext) → Dec (Σ TypingContext (λ Γ → Γ₁ ∩ₐ Γ₂ ≡ Γ))
+affineIntersection ∅ ∅ = yes (∅ , intersectEmptyR)
+affineIntersection ∅ (Γ₂ , x ↦ x₁) = yes (∅ , intersectEmptyL)
+affineIntersection Γ₁ ∅ = yes (∅ , intersectEmptyR)
+affineIntersection Γ₁@(_ , _ ↦ _) (Γ₂ , x ↦ T) with affineIntersection Γ₁ Γ₂ | qualifierOf T ≟q aff | (x ↦ T ∈? Γ₁) {_≟ᵥ_ = _≟ₜ_}
+... | no nosub | _ | _ = no λ {
+  (_ , intersectNonAffine  {Γ = Γ} _ Γ-proof _) → contradiction (Γ , Γ-proof) nosub ;
+  (_ , intersectAffineKeep {Γ = Γ} _ Γ-proof _) → contradiction (Γ , Γ-proof) nosub ;
+  (_ , intersectAffineDrop {Γ = Γ} _ Γ-proof _) → contradiction (Γ , Γ-proof) nosub}
+... | yes (Γ , Γ-proof) | yes is-aff | yes in-Γ₁ = yes ((Γ , x ↦ T) , intersectAffineKeep is-aff Γ-proof in-Γ₁)
+... | yes (Γ , Γ-proof) | yes is-aff | no not-in-Γ₁ = yes (Γ , (intersectAffineDrop is-aff Γ-proof not-in-Γ₁)) 
+... | yes (Γ , Γ-proof) | no not-aff | yes in-Γ₁ = yes ((Γ , x ↦ T) , (intersectNonAffine not-aff Γ-proof in-Γ₁))
+... | yes (Γ , Γ-proof) | no not-aff | no not-in-Γ₁ = no λ {
+  (_ , intersectNonAffine _ _ in-Γ₁) → contradiction in-Γ₁ not-in-Γ₁ ;
+  (_ , intersectAffineKeep is-aff _ _) → contradiction is-aff not-aff ;
+  (_ , intersectAffineDrop is-aff _ _) → contradiction is-aff not-aff}
+
+affineIntersection-unique : ∀ {Γ₁ Γ₂ Γ Γ'} → Γ₁ ∩ₐ Γ₂ ≡ Γ → Γ₁ ∩ₐ Γ₂ ≡ Γ' → Γ ≡ Γ'
+affineIntersection-unique intersectEmptyR intersectEmptyR = refl
+affineIntersection-unique intersectEmptyR intersectEmptyL = refl
+affineIntersection-unique intersectEmptyL intersectEmptyR = refl
+affineIntersection-unique intersectEmptyL intersectEmptyL = refl
+affineIntersection-unique intersectEmptyL (intersectAffineDrop _ sub _) = affineIntersection-unique intersectEmptyL sub
+affineIntersection-unique (intersectNonAffine {x = x} {T = T} _ sub₁ _) (intersectNonAffine _ sub₂ _) = cong ((_, x ↦ T)) (affineIntersection-unique sub₁ sub₂)
+affineIntersection-unique (intersectNonAffine not-aff _ _) (intersectAffineKeep is-aff _ _) = contradiction is-aff not-aff
+affineIntersection-unique (intersectNonAffine not-aff _ _) (intersectAffineDrop is-aff _ _) = contradiction is-aff not-aff
+affineIntersection-unique (intersectAffineKeep is-aff _ _) (intersectNonAffine not-aff _ _) = contradiction is-aff not-aff
+affineIntersection-unique (intersectAffineKeep _ sub₁ _) (intersectAffineKeep _ sub₂ _) = cong _ (affineIntersection-unique sub₁ sub₂)
+affineIntersection-unique (intersectAffineKeep _ _ elem) (intersectAffineDrop _ _ not-elem) = contradiction elem not-elem
+affineIntersection-unique (intersectAffineDrop _ sub _) intersectEmptyL = affineIntersection-unique sub intersectEmptyL
+affineIntersection-unique (intersectAffineDrop is-aff _ _) (intersectNonAffine not-aff _ _) = contradiction is-aff not-aff
+affineIntersection-unique (intersectAffineDrop _ _ not-elem) (intersectAffineKeep _ _ elem) = contradiction elem not-elem
+affineIntersection-unique (intersectAffineDrop x a x₁) (intersectAffineDrop x₂ b x₃) = affineIntersection-unique a b
+
 _⟨⟨_⟩⟩ : REL Qualifier TypingContext 0ℓ
 q ⟨⟨ Γ ⟩⟩ = All (λ _ ty → q ⟨ ty ⟩) Γ
 
