@@ -73,4 +73,12 @@ main = run (List.sequence′ $ intersperse (putStrLn "==========================
               (`let y := ` ord ` false ⇒
                 (`let p := ` ord < y , x >  ⇒
                   (`split ` p as a , b ⇒ (`if (` b) then `eat (` a) else `eat (` a))) ))) -- bad: x and y used out of order
+      ∷ (`let x := ` aff `unit ⇒
+               (`eat ` x)) -- good: affine var used once
+      ∷ (`let x := ` aff `unit ⇒
+               (` un `unit)) -- good: affine var unused
+       ∷ (`let x := ` aff `unit ⇒
+               (` aff < x , x >)) -- bad: affine var used twice
+        ∷ (`let x := ` aff `unit ⇒
+               (`if (` un ` true) then `eat ` x else ` un `unit)) -- good: affine var used once in one control path and zero times in another
       ∷ []
