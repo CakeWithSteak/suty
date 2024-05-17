@@ -20,7 +20,7 @@ private
     q : Qualifier
     t t₁ t₂ t₃ : Term α
     T T₁ T₂ : Type
-    Γ Γ₂ Γ₃ Γ₄ : TypingContext
+    Γ Γ₂ Γ₃ Γ₄ Γ₅ : TypingContext
 
 infix 2 _⊢_::_,_
 data _⊢_::_,_ (Γᵢ : TypingContext) : (t : Term α) (ty : Type) (Γₒ : TypingContext) → Set where
@@ -33,9 +33,10 @@ data _⊢_::_,_ (Γᵢ : TypingContext) : (t : Term α) (ty : Type) (Γₒ : Typ
   TUnit : Γᵢ ⊢ (Term α ∋ ` q `unit) :: ` q `Unit , Γᵢ
   TIf :                 Γᵢ ⊢ t₁ :: ` q `Bool , Γ₂
                        → Γ₂ ⊢ t₂ :: T , Γ₃
-                       → Γ₂ ⊢ t₃ :: T , Γ₃
+                       → Γ₂ ⊢ t₃ :: T , Γ₄
+                       → Γ₃ ∩ₐ Γ₄ ≡ Γ₅
                        ------------------------------------------------------------------------
-                       → Γᵢ ⊢ `if t₁ then t₂ else t₃  :: T , Γ₃
+                       → Γᵢ ⊢ `if t₁ then t₂ else t₃  :: T , Γ₅
 
   TEat : Γᵢ ⊢ t :: ` q `Unit , Γ₂
               ------------------------------------------------------------------------
@@ -110,8 +111,11 @@ typing-unique a@(TAVar _ _ _ _ _) b@(TLVar _ _ _ _ _) = Data.Product.map sym sym
 typing-unique a@(TAVar _ _ _ _ _) b@(TOVar _ _ _ _ _) = Data.Product.map sym sym $ typing-unique b a
 typing-unique TBool TBool = refl , refl
 typing-unique TUnit TUnit = refl , refl
-typing-unique (TIf cond-bool₁ left-T₁ right-T₁) (TIf cond-bool₂ left-T₂ right-T₂) with typing-unique cond-bool₁ cond-bool₂
-... | (refl , refl) = typing-unique left-T₁ left-T₂
+typing-unique (TIf cond-bool₁ left-T₁ right-T₁ intersect₁) (TIf cond-bool₂ left-T₂ right-T₂ intersect₂) with typing-unique cond-bool₁ cond-bool₂
+... | (refl , refl) with typing-unique left-T₁ left-T₂
+... | (refl , refl) with typing-unique right-T₁ right-T₂
+... | (refl , refl) with affineIntersection-unique intersect₁ intersect₂
+... | refl = refl , refl
 typing-unique (TEat a) (TEat b) = refl , proj₂ (typing-unique a b)
 typing-unique (TPair _ _ left₁ right₁ _ _) (TPair _ _ left₂ right₂ _ _) with typing-unique left₁ left₂
 ... | (refl , refl) with typing-unique right₁ right₂

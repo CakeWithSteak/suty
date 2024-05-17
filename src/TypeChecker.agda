@@ -17,8 +17,8 @@ private
     α : Scope
 
 private if-untypable-if-either-arm-untypable : ∀ {Γ Γ' T} {t t₁ t₂ : Term α} → Γ ⊢ t :: T , Γ' → (Γ' ⊢ t₁ ::⊥) ⊎ (Γ' ⊢ t₂ ::⊥) → Γ ⊢(`if t then t₁ else t₂) ::⊥
-if-untypable-if-either-arm-untypable cond (inj₁ t₁-untypable) = λ { ((T , Γ') , TIf cond' t₁-typable _) → case typing-unique cond cond' of λ {(refl , refl) → contradiction ((T , Γ') , t₁-typable) t₁-untypable}}
-if-untypable-if-either-arm-untypable cond (inj₂ t₂-untypable) = λ { ((T , Γ') , TIf cond' _ t₂-typable) → case typing-unique cond cond' of λ {(refl , refl) → contradiction ((T , Γ') , t₂-typable) t₂-untypable}}
+if-untypable-if-either-arm-untypable cond (inj₁ t₁-untypable) = λ { ((T , Γ') , TIf cond' t₁-typable _ _) → case typing-unique cond cond' of λ {(refl , refl) → contradiction ((T , _) , t₁-typable) t₁-untypable}}
+if-untypable-if-either-arm-untypable cond (inj₂ t₂-untypable) = λ { ((T , Γ') , TIf cond' _ t₂-typable _) → case typing-unique cond cond' of λ {(refl , refl) → contradiction ((T , _) , t₂-typable) t₂-untypable}}
 
 TypecheckResult : TypingContext → Term α → Set
 TypecheckResult Γ t =  Dec (Σ (Type × TypingContext) λ { (T , Γ') → Γ ⊢ t :: T , Γ' } )
@@ -38,19 +38,24 @@ typeOf Γ (` x # well-scoped) with typeLookup Γ x
 typeOf Γ (` q ` b) = yes ((` q `Bool , Γ) , TBool)
 typeOf Γ (` q `unit) = yes ((` q `Unit , Γ) , TUnit)
 typeOf Γ (`if t₁ then t₂ else t₃) with typeOf Γ t₁
-... | no cond-untypable = no (λ { (_ , TIf  {q = q} {Γ₂ = Γ₂} cond-bool _ _) → contradiction ((` q `Bool , Γ₂) , cond-bool) cond-untypable})
+... | no cond-untypable = no (λ { (_ , TIf  {q = q} {Γ₂ = Γ₂} cond-bool _ _ _) → contradiction ((` q `Bool , Γ₂) , cond-bool) cond-untypable})
 ... | yes ((T-cond , Γ₂) , cond-proof) with bool? T-cond
-... | no' cond-not-bool = no (λ { (_ , TIf  cond-bool _ _) → typing-contradiction cond-not-bool cond-bool cond-proof})
+... | no' cond-not-bool = no (λ { (_ , TIf  cond-bool _ _ _) → typing-contradiction cond-not-bool cond-bool cond-proof})
 ... | yes' (q , refl) with typeOf Γ₂ t₂ | typeOf Γ₂ t₃
 ... | no a  | _ = no (if-untypable-if-either-arm-untypable cond-proof (inj₁ a))
 ... | _        | no b =  no (if-untypable-if-either-arm-untypable cond-proof (inj₂ b))
-... | yes ((T-left , Γ₃-left) , left-proof) | yes ((T-right , Γ₃-right) , right-proof) with T-left ≟ₜ T-right ×-dec (_≟Γ_ {_≟ᵥ_ = _≟ₜ_} Γ₃-left Γ₃-right)
-... | no left≢right = no
-         λ { ((T , Γ₃') , TIf cond' left right) → case typing-unique cond-proof cond' of
-         λ {(refl , refl) → case typing-unique left left-proof of
-         λ {(refl , refl) → case typing-unique right right-proof of
-         λ {(refl , refl) → contradiction (refl , refl) left≢right}}}}
-... | yes (refl , refl) = yes ((T-left , Γ₃-left) , TIf cond-proof left-proof right-proof)
+... | yes ((T-left , Γ₃-left) , left-proof) | yes ((T-right , Γ₃-right) , right-proof) with T-left ≟ₜ T-right | affineIntersection Γ₃-left Γ₃-right
+... | no type-mismatch | _ = no 
+      λ { ((T , Γ₃') , TIf cond' left right _) → case typing-unique cond-proof cond' of
+      λ {(refl , refl) → case typing-unique left left-proof of
+      λ {(refl , refl) → case typing-unique right right-proof of
+      λ {(refl , refl) → contradiction refl type-mismatch}}}}
+... | _ | no no-intersect = no 
+      λ { ((T , Γ₃') , TIf cond' left right intersect) → case typing-unique cond-proof cond' of
+      λ {(refl , refl) → case typing-unique left left-proof of
+      λ {(refl , refl) → case typing-unique right right-proof of
+      λ {(refl , refl) → contradiction (_ , intersect) no-intersect}}}}
+... | yes refl | yes (Γ₅ , intersect) = yes ((T-left , Γ₅) , (TIf cond-proof left-proof right-proof intersect))
 typeOf Γ ((` q < x , y >) {x-well-scoped} {y-well-scoped}) with typeOf Γ (` y # y-well-scoped)
 ... | no y-untypable = no (λ { (_ , TPair {T₂ = T₂} {Γ₂ = Γ₂} _ _ y-typable _ _ _) → contradiction ((T₂ , Γ₂) , y-typable) y-untypable})
 ... | yes ((T₂ , Γ₂) , T₂-proof) with typeOf Γ₂ (` x # x-well-scoped)
@@ -96,3 +101,6 @@ typeOf Γ (`eat t) with typeOf Γ t
 ... | yes ((T , Γ₂) , T-proof) with unit? T
 ... | no' not-unit = no (λ { (_ , TEat t-unit) → typing-contradiction not-unit T-proof t-unit })
 ... | yes' (_ , refl) = yes ((` un `Unit , Γ₂) , TEat T-proof)
+
+typeOf' : (t : Term ∅) → TypecheckResult ∅ t
+typeOf' = typeOf ∅
