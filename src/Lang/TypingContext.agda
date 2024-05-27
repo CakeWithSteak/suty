@@ -182,6 +182,7 @@ divideContext Γ₁ Ω (Γ₂ , x ↦ T) with divideContext Γ₁ Ω Γ₂
     ... | Γ₄ , Γ₄-proof = yes (Γ₄ , divRel sub T-rel x∈Γ₃ x∈Ω Γ₄-proof)
 
 -- Affine context intersection: non-affine variables must appear in both contexts, while affine can appear in only one (in which case they are dropped) or both (in whcih case they are kept)
+-- todo generalise this to be parametric over a qualifier, so that it can be reused for relevant types
 data _∩ₐ_≡_ : TypingContext → TypingContext → TypingContext → Set where
   intersectEmptyR : ∀ {Γ} → Γ ∩ₐ ∅ ≡ ∅
   intersectEmptyL : ∀ {Γ} → ∅ ∩ₐ Γ ≡ ∅

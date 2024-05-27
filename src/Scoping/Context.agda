@@ -9,7 +9,7 @@ open import Relation.Nullary using (⌊_⌋; _×-dec_; yes; no; does; _because_;
 open import Relation.Unary using (Pred) renaming (Decidable to Decidable₁)
 open import Relation.Binary using (REL; IsDecEquivalence; _⇒_) renaming (Decidable to Decidable₂)
 open import Data.Bool using (true; false; if_then_else_)
-open import Function.Base using (case_of_)
+open import Function.Base using (case_of_; _$_)
 open import Data.Product
 open import Data.Sum
 open import Data.Empty
@@ -126,6 +126,11 @@ mergeScopes3 Ω₁ Ω₂ Ω₃ with mergeScopes Ω₁ Ω₂
 ... | Ω* , Ω*-proof with mergeScopes Ω* Ω₃
 ... | Ω₄ , Ω₄-proof = Ω₄ , Ω* , Ω*-proof , Ω₄-proof
 
--- TODO
-postulate mergeScopes-unique : ∀ {Ω₁ Ω₂ Ω₃ Ω₃'} → Ω₁ ∪ Ω₂ ≡ Ω₃ → Ω₁ ∪ Ω₂ ≡ Ω₃' → Ω₃ ≡ Ω₃'
-postulate mergeScopes3-unique :  ∀ {Ω₁ Ω₂ Ω₃ Ω₄ Ω₄'} → Ω₁ ∪ Ω₂ ∪ Ω₃ ≡ Ω₄ → Ω₁ ∪ Ω₂ ∪ Ω₃ ≡ Ω₄' → Ω₄ ≡ Ω₄'
+mergeScopes-unique : ∀ {Ω₁ Ω₂ Ω₃ Ω₃'} → Ω₁ ∪ Ω₂ ≡ Ω₃ → Ω₁ ∪ Ω₂ ≡ Ω₃' → Ω₃ ≡ Ω₃'
+mergeScopes-unique empty empty = refl
+mergeScopes-unique (append a) (append b) = cong (λ z → z , _ ↦ tt) $ mergeScopes-unique a b
+
+mergeScopes3-unique :  ∀ {Ω₁ Ω₂ Ω₃ Ω₄ Ω₄'} → Ω₁ ∪ Ω₂ ∪ Ω₃ ≡ Ω₄ → Ω₁ ∪ Ω₂ ∪ Ω₃ ≡ Ω₄' → Ω₄ ≡ Ω₄'
+mergeScopes3-unique (a* , a₁ , a₂) (b* , b₁ , b₂) with mergeScopes-unique a₁ b₁
+... | refl with mergeScopes-unique a₂ b₂
+... | refl = refl
