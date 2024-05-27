@@ -62,24 +62,28 @@ qualifierOf (` q ` _ ⇒ _) = q
 ordQualified? : (t : Type) → Dec (qualifierOf t ≡ ord)
 ordQualified? t = qualifierOf t ≟q ord
 
--- todo somewhat hacky to avoid "I'm not sure" compiler errors
-qualifierCases : {A : Set} (ty : Type) → (qualifierOf ty ≡ un → A) → (qualifierOf ty ≡ lin → A) → (qualifierOf ty ≡ ord → A) → (qualifierOf ty ≡ aff → A) → A
-qualifierCases ty@(` un `Bool) u l o a = u refl
-qualifierCases ty@(` lin `Bool) u l o a = l refl
-qualifierCases ty@(` ord `Bool) u l o a = o refl
-qualifierCases ty@(` aff `Bool) u l o a = a refl
-qualifierCases ty@(` un `Unit) u l o a = u refl
-qualifierCases ty@(` lin `Unit) u l o a = l refl
-qualifierCases ty@(` ord `Unit) u l o a = o refl
-qualifierCases ty@(` aff `Unit) u l o a = a refl
-qualifierCases ty@(` un ` _ `× _) u l o a = u refl
-qualifierCases ty@(` lin ` _ `× _) u l o a = l refl
-qualifierCases ty@(` ord ` _ `× _) u l o a = o refl
-qualifierCases ty@(` aff ` _ `× _) u l o a = a refl
-qualifierCases ty@(` un ` _ ⇒ _) u l o a = u refl
-qualifierCases ty@(` lin ` _ ⇒ _) u l o a = l refl
-qualifierCases ty@(` ord ` _ ⇒ _) u l o a = o refl
-qualifierCases ty@(` aff ` _ ⇒ _) u l o a = a refl
+--  somewhat hacky to avoid "I'm not sure" compiler errors
+qualifierCases : {A : Set} (ty : Type) → (qualifierOf ty ≡ un → A) → (qualifierOf ty ≡ lin → A) → (qualifierOf ty ≡ ord → A) → (qualifierOf ty ≡ aff → A) → (qualifierOf ty ≡ rel → A) → A
+qualifierCases ` un `Bool u l o a r = u refl
+qualifierCases ` aff `Bool u l o a r = a refl
+qualifierCases ` lin `Bool u l o a r = l refl
+qualifierCases ` ord `Bool u l o a r = o refl
+qualifierCases ` rel `Bool u l o a r = r refl
+qualifierCases ` un `Unit u l o a r = u refl
+qualifierCases ` aff `Unit u l o a r = a refl
+qualifierCases ` lin `Unit u l o a r = l refl
+qualifierCases ` ord `Unit u l o a r = o refl
+qualifierCases ` rel `Unit u l o a r = r refl
+qualifierCases (` un ` _ `× _) u l o a r = u refl
+qualifierCases (` aff ` _ `× _) u l o a r = a refl
+qualifierCases (` lin ` _ `× _) u l o a r = l refl
+qualifierCases (` ord ` _ `× _) u l o a r = o refl
+qualifierCases (` rel ` _ `× _) u l o a r = r refl
+qualifierCases (` un ` _ ⇒ _) u l o a r = u refl
+qualifierCases (` aff ` _ ⇒ _) u l o a r = a refl
+qualifierCases (` lin ` _ ⇒ _) u l o a r = l refl
+qualifierCases (` ord ` _ ⇒ _) u l o a r = o refl
+qualifierCases (` rel ` _ ⇒ _) u l o a r = r refl
 
 _≟ₜ_ : DecidableEquality Type
 ` q `Bool ≟ₜ ` w `Bool with q ≟q w
@@ -120,11 +124,3 @@ q ⟨ ty ⟩ = (q ⊑ qualifierOf ty)
 
 canContain? : Decidable _⟨_⟩
 canContain? q ty = (q ⊑? qualifierOf ty)
-
---data _⟨_⟩ (q : Qualifier) (ty : Type) : Set where
---  qualifies : q ⊑ qualifierOf ty → q ⟨ ty ⟩
-
---canContain? : Decidable _⟨_⟩
---canContain? q ty with q ⊑? qualifierOf ty
---... | no q⋢ = no λ { (qualifies q⊑) → contradiction q⊑ q⋢}
---... | yes p = yes (qualifies p)
