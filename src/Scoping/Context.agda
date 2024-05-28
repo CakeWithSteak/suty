@@ -109,14 +109,16 @@ Scope = Context ⊤
 infix 3  _∪_≡_
 infix 3 _∪_∪_≡_ 
 
-data _∪_≡_ :  Scope → Scope → Scope → Set where
+data _∪_≡_ {V : Set}  :  Context V → Context V → Context V → Set where
   empty : ∀ {Ω} → Ω ∪ ∅ ≡ Ω
-  append : ∀ {Ω₁ Ω₂ Ω₃ x} → Ω₁ ∪ Ω₂ ≡ Ω₃ → Ω₁ ∪ (Ω₂ ⸴ x) ≡ (Ω₃ ⸴ x)
+  append : ∀ {Ω₁ Ω₂ Ω₃ x v} → Ω₁ ∪ Ω₂ ≡ Ω₃ → Ω₁ ∪ (Ω₂ , x ↦ v ) ≡ (Ω₃ , x ↦ v)
 
+-- todo delete rendundant things
 _∪_∪_≡_ : Scope → Scope → Scope → Scope → Set
 Ω₁ ∪ Ω₂ ∪ Ω₃ ≡ Ω₄ = Σ[ Ω* ∈ Scope ] ((Ω₁ ∪ Ω₂ ≡ Ω*) × (Ω* ∪ Ω₃ ≡ Ω₄))
 
-mergeScopes : (Ω₁ Ω₂ : Scope) → Σ[ Ω₃ ∈ Scope ] Ω₁ ∪ Ω₂ ≡ Ω₃
+-- todo rename
+mergeScopes : (Ω₁ Ω₂ : Context V) → Σ[ Ω₃ ∈ Context V ] Ω₁ ∪ Ω₂ ≡ Ω₃
 mergeScopes Ω₁ ∅ = Ω₁ , empty
 mergeScopes Ω₁ (Ω₂ ⸴ x) with mergeScopes Ω₁ Ω₂
 ... | Ω₃ , Ω₃-proof = (Ω₃ ⸴ x) , append Ω₃-proof
@@ -126,9 +128,9 @@ mergeScopes3 Ω₁ Ω₂ Ω₃ with mergeScopes Ω₁ Ω₂
 ... | Ω* , Ω*-proof with mergeScopes Ω* Ω₃
 ... | Ω₄ , Ω₄-proof = Ω₄ , Ω* , Ω*-proof , Ω₄-proof
 
-mergeScopes-unique : ∀ {Ω₁ Ω₂ Ω₃ Ω₃'} → Ω₁ ∪ Ω₂ ≡ Ω₃ → Ω₁ ∪ Ω₂ ≡ Ω₃' → Ω₃ ≡ Ω₃'
+mergeScopes-unique : ∀ {V : Set} {Ω₁ Ω₂ Ω₃ Ω₃' : Context V} → Ω₁ ∪ Ω₂ ≡ Ω₃ → Ω₁ ∪ Ω₂ ≡ Ω₃' → Ω₃ ≡ Ω₃'
 mergeScopes-unique empty empty = refl
-mergeScopes-unique (append a) (append b) = cong (λ z → z , _ ↦ tt) $ mergeScopes-unique a b
+mergeScopes-unique {Ω₃ = Ω₃} (append a) (append b) = cong (λ z → z , _ ↦ _) $ mergeScopes-unique a b
 
 mergeScopes3-unique :  ∀ {Ω₁ Ω₂ Ω₃ Ω₄ Ω₄'} → Ω₁ ∪ Ω₂ ∪ Ω₃ ≡ Ω₄ → Ω₁ ∪ Ω₂ ∪ Ω₃ ≡ Ω₄' → Ω₄ ≡ Ω₄'
 mergeScopes3-unique (a* , a₁ , a₂) (b* , b₁ , b₂) with mergeScopes-unique a₁ b₁

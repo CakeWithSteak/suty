@@ -21,15 +21,15 @@ private
     t t₁ t₂ t₃ : Term α
     T T₁ T₂ : Type
     Γ Γ₂ Γ₃ Γ₄ Γ₅ : TypingContext
-    Ω Ω₁ Ω₂ Ω₃ Ω₄ : Scope
+    Ω Ω₁ Ω₂ Ω₃ Ω₄ Ω₅ : TypingContext
 
 infix 2 _⊢_::_,_⨾_
-data _⊢_::_,_⨾_ (Γᵢ : TypingContext) : (t : Term α) (ty : Type) (Γₒ : TypingContext) (Ω : Scope) → Set where
+data _⊢_::_,_⨾_ (Γᵢ : TypingContext) : (t : Term α) (ty : Type) (Γₒ : TypingContext) (Ω : TypingContext) → Set where
   TUVar : (p : x ∈ α) → (elem : x ↦ T ∈* Γᵢ) →  (qualifierOf T ≡ un) → Γᵢ ⊢ (` x # p) :: T , Γᵢ ⨾ ∅
   TLVar : (p : x ∈ α) → (elem : x ↦ T ∈* Γᵢ) → (qualifierOf T ≡ lin) → (Γₒ : TypingContext) → Γᵢ - x ↦ T ≡ Γₒ → Γᵢ ⊢ (` x # p) :: T , Γₒ ⨾ ∅
   TOVar : (p : x ∈ α) → (elem : x ↦ T ∈* Γᵢ) → (qualifierOf T ≡ ord) → (Γₒ : TypingContext) → Γᵢ - x ↦ T ≡ Γₒ → Γᵢ ⊢ (` x # p) :: T , Γₒ ⨾ ∅
   TAVar : (p : x ∈ α) → (elem : x ↦ T ∈* Γᵢ) → (qualifierOf T ≡ aff) → (Γₒ : TypingContext) →  Γᵢ - x ↦ T ≡ Γₒ → Γᵢ ⊢ (` x # p) :: T , Γₒ ⨾ ∅
-  TRVar : (p : x ∈ α) → (elem : x ↦ T ∈* Γᵢ) → (qualifierOf T ≡ rel) → (Γₒ : TypingContext) →  Γᵢ - x ↦ T ≡ Γₒ → Γᵢ ⊢ (` x # p) :: T , Γₒ ⨾ (∅ ⸴ x)
+  TRVar : (p : x ∈ α) → (elem : x ↦ T ∈* Γᵢ) → (qualifierOf T ≡ rel)  → Γᵢ ⊢ (` x # p) :: T , Γᵢ ⨾ (∅ , x ↦ T)
 
   TBool :  {b : Bool} → Γᵢ ⊢ (Term α ∋ ` q ` b ) :: ` q `Bool , Γᵢ ⨾ ∅
   TUnit : Γᵢ ⊢ (Term α ∋ ` q `unit) :: ` q `Unit , Γᵢ ⨾ ∅
@@ -37,9 +37,10 @@ data _⊢_::_,_⨾_ (Γᵢ : TypingContext) : (t : Term α) (ty : Type) (Γₒ :
                        → Γ₂ ⊢ t₂ :: T , Γ₃ ⨾ Ω₂
                        → Γ₂ ⊢ t₃ :: T , Γ₄ ⨾ Ω₃
                        → Γ₃ ∩ₐ Γ₄ ≡ Γ₅
-                       → Ω₁ ∪ Ω₂ ∪ Ω₃ ≡ Ω₄ -- TODO: wrong.
+                       → Ω₂ ∩ᵣ Ω₃ ≡ Ω₄
+                       → Ω₁ ∪ Ω₄  ≡ Ω₅
                        ------------------------------------------------------------------------
-                       → Γᵢ ⊢ `if t₁ then t₂ else t₃  :: T , Γ₅ ⨾ Ω₄
+                       → Γᵢ ⊢ `if t₁ then t₂ else t₃  :: T , Γ₅ ⨾ Ω₅
 
   TEat : Γᵢ ⊢ t :: ` q `Unit , Γ₂ ⨾ Ω
               ------------------------------------------------------------------------
@@ -87,7 +88,7 @@ data _⊢_::_,_⨾_ (Γᵢ : TypingContext) : (t : Term α) (ty : Type) (Γₒ :
 
 infix 2 _⊢_::⊥
 _⊢_::⊥ : TypingContext → Term α → Set
-_⊢_::⊥ Γ t =  ¬ Σ (Type × TypingContext × Scope) (λ (T , Γ' , Ω) → (Γ ⊢ t :: T , Γ' ⨾ Ω))
+_⊢_::⊥ Γ t =  ¬ Σ (Type × TypingContext × TypingContext) (λ (T , Γ' , Ω) → (Γ ⊢ t :: T , Γ' ⨾ Ω))
 
 typing-unique : ∀ {Γ'₁ Γ'₂ Ω₁ Ω₂} → (Γ ⊢ t :: T₁ , Γ'₁ ⨾ Ω₁)→ Γ ⊢ t :: T₂ , Γ'₂ ⨾ Ω₂ → T₁ ≡ T₂ × Γ'₁ ≡ Γ'₂ × Ω₁ ≡ Ω₂
 typing-unique (TUVar p elem₁ _) (TUVar .p  elem₂ _) with ∈*-unique elem₁ elem₂
@@ -110,28 +111,29 @@ typing-unique (TLVar p elem is-lin _ _) (TAVar p elem₁ is-aff _ _) =
   case ∈*-unique elem elem₁ of λ {refl → contradiction (trans (sym is-aff) is-lin) λ () }
 typing-unique (TOVar p elem is-ord _ _) (TAVar p elem₁ is-aff _ _) =
   case ∈*-unique elem elem₁ of λ {refl → contradiction (trans (sym is-aff) is-ord) λ () }
-typing-unique (TRVar _ elem is-rel _ _) (TUVar _ elem₁ is-un) = case ∈*-unique elem elem₁ of λ {refl → contradiction (trans (sym is-rel) is-un) λ () }
-typing-unique (TRVar _ elem is-rel _ x₁) (TLVar _ elem₁ is-lin _ x₃) = case ∈*-unique elem elem₁ of λ {refl → contradiction (trans (sym is-rel) is-lin) λ () }
-typing-unique (TRVar _ elem is-rel _ x₁) (TOVar _ elem₁ is-ord _ x₃) = case ∈*-unique elem elem₁ of λ {refl → contradiction (trans (sym is-rel) is-ord) λ () }
-typing-unique (TRVar _ elem is-rel _ x₁) (TAVar _ elem₁ is-aff _ x₃) = case ∈*-unique elem elem₁ of λ {refl → contradiction (trans (sym is-rel) is-aff) λ () }
-typing-unique (TRVar _ elem is-rel _ Γ'₁-proof) (TRVar _ elem₁ _ _ Γ'₂-proof) = case ∈*-unique elem elem₁ of λ { refl → refl , deleteBinding-unique Γ'₁-proof Γ'₂-proof , refl  }
+typing-unique (TRVar _ elem is-rel) (TUVar _ elem₁ is-un) = case ∈*-unique elem elem₁ of λ {refl → contradiction (trans (sym is-rel) is-un) λ () }
+typing-unique (TRVar _ elem is-rel) (TLVar _ elem₁ is-lin _ x₃) = case ∈*-unique elem elem₁ of λ {refl → contradiction (trans (sym is-rel) is-lin) λ () }
+typing-unique (TRVar _ elem is-rel) (TOVar _ elem₁ is-ord _ x₃) = case ∈*-unique elem elem₁ of λ {refl → contradiction (trans (sym is-rel) is-ord) λ () }
+typing-unique (TRVar _ elem is-rel) (TAVar _ elem₁ is-aff _ x₃) = case ∈*-unique elem elem₁ of λ {refl → contradiction (trans (sym is-rel) is-aff) λ () }
+typing-unique (TRVar _ elem is-rel) (TRVar _ elem₁ _) = case ∈*-unique elem elem₁ of λ { refl → refl , refl , refl  }
 typing-unique a@(TAVar _ _ _ _ _) b@(TUVar _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
 typing-unique a@(TAVar _ _ _ _ _) b@(TLVar _ _ _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
 typing-unique a@(TAVar _ _ _ _ _) b@(TOVar _ _ _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
 typing-unique a@(TOVar _ _ _ _ _) b@(TUVar _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
 typing-unique a@(TOVar _ _ _ _ _) b@(TLVar _ _ _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
 typing-unique a@(TLVar _ _ _ _ _) b@(TUVar _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
-typing-unique a@(TUVar _ _ _) b@(TRVar _ _ _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
-typing-unique a@(TLVar _ _ _ _ _) b@(TRVar _ _ _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
-typing-unique a@(TOVar _ _ _ _ _) b@(TRVar _ _ _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
-typing-unique a@(TAVar _ _ _ _ _) b@(TRVar _ _ _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
+typing-unique a@(TUVar _ _ _) b@(TRVar _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
+typing-unique a@(TLVar _ _ _ _ _) b@(TRVar _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
+typing-unique a@(TOVar _ _ _ _ _) b@(TRVar _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
+typing-unique a@(TAVar _ _ _ _ _) b@(TRVar _ _ _) = Data.Product.map sym (Data.Product.map sym sym) $ typing-unique b a
 typing-unique TBool TBool = refl , refl , refl
 typing-unique TUnit TUnit = refl , refl , refl
-typing-unique (TIf cond-bool₁ left-T₁ right-T₁ intersect₁ Ω-merge₁) (TIf cond-bool₂ left-T₂ right-T₂ intersect₂ Ω-merge₂) with typing-unique cond-bool₁ cond-bool₂
+typing-unique (TIf cond-bool₁ left-T₁ right-T₁ intersect₁ Ω-intersect₁ Ω-merge₁) (TIf cond-bool₂ left-T₂ right-T₂ intersect₂ Ω-intersect₂ Ω-merge₂) with typing-unique cond-bool₁ cond-bool₂
 ... | (refl , refl , refl) with typing-unique left-T₁ left-T₂
 ... | (refl , refl , refl) with typing-unique right-T₁ right-T₂
-... | (refl , refl , refl) with affineIntersection-unique intersect₁ intersect₂
-... | refl with mergeScopes3-unique Ω-merge₁ Ω-merge₂
+... | (refl , refl , refl) with contextIntersection-unique intersect₁ intersect₂
+... | refl with contextIntersection-unique Ω-intersect₁ Ω-intersect₂
+... | refl with mergeScopes-unique Ω-merge₁ Ω-merge₂
 ... | refl = refl , refl , refl
 typing-unique (TEat a) (TEat b) with typing-unique a b
 ... | refl , refl , refl = refl , refl , refl

@@ -17,11 +17,11 @@ private
     α : Scope
 
 private if-untypable-if-either-arm-untypable : ∀ {Γ Γ' T Ω} {t t₁ t₂ : Term α} → Γ ⊢ t :: T , Γ' ⨾ Ω → (Γ' ⊢ t₁ ::⊥) ⊎ (Γ' ⊢ t₂ ::⊥) → Γ ⊢(`if t then t₁ else t₂) ::⊥
-if-untypable-if-either-arm-untypable cond (inj₁ t₁-untypable) = λ { ((T , Γ') , TIf cond' t₁-typable _ _ _) → case typing-unique cond cond' of λ {(refl , refl , refl) → contradiction ((T , _) , t₁-typable) t₁-untypable}}
-if-untypable-if-either-arm-untypable cond (inj₂ t₂-untypable) = λ { ((T , Γ') , TIf cond' _ t₂-typable _ _) → case typing-unique cond cond' of λ {(refl , refl , refl) → contradiction ((T , _) , t₂-typable) t₂-untypable}}
+if-untypable-if-either-arm-untypable cond (inj₁ t₁-untypable) = λ { ((T , Γ') , TIf cond' t₁-typable _ _ _ _) → case typing-unique cond cond' of λ {(refl , refl , refl) → contradiction ((T , _) , t₁-typable) t₁-untypable}}
+if-untypable-if-either-arm-untypable cond (inj₂ t₂-untypable) = λ { ((T , Γ') , TIf cond' _ t₂-typable _ _ _) → case typing-unique cond cond' of λ {(refl , refl , refl) → contradiction ((T , _) , t₂-typable) t₂-untypable}}
 
 TypecheckResult : TypingContext → Term α → Set
-TypecheckResult Γ t =  Dec (Σ (Type × TypingContext × Scope) λ { (T , Γ' , Ω) → Γ ⊢ t :: T , Γ' ⨾ Ω } )
+TypecheckResult Γ t =  Dec (Σ (Type × TypingContext × TypingContext) λ { (T , Γ' , Ω) → Γ ⊢ t :: T , Γ' ⨾ Ω } )
 
 typeOf : (Γ : TypingContext) → (t : Term α) → TypecheckResult Γ t
 typeOf Γ (` x # well-scoped) with typeLookup Γ x
@@ -30,35 +30,40 @@ typeOf Γ (` x # well-scoped) with typeLookup Γ x
   ((ty , _) , TLVar .well-scoped elem _ _ _) → contradiction (ty , elem) not-elem ;
   ((ty , _) , TOVar .well-scoped elem _ _ _) → contradiction (ty , elem) not-elem ;
   ((ty , _) , TAVar .well-scoped elem _ _ _) → contradiction (ty , elem) not-elem ;
-  ((ty , _) , TRVar .well-scoped elem _ _ _) → contradiction (ty , elem) not-elem})
+  ((ty , _) , TRVar .well-scoped elem _) → contradiction (ty , elem) not-elem})
 ...  | yes (ty , elem) = yes $ qualifierCases ty
            (λ is-un → (ty , Γ , ∅) , (TUVar well-scoped elem is-un))
            (λ is-lin → let (Γ' , Γ'-proof) = deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ x ty (∈*⇒∈ elem) in  (ty , Γ' , ∅) , TLVar well-scoped elem is-lin Γ' Γ'-proof)
            (λ is-ord → let (Γ' , Γ'-proof) = deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ x ty (∈*⇒∈ elem) in  (ty , Γ' , ∅) , TOVar well-scoped elem is-ord Γ' Γ'-proof)
           (λ is-aff → let (Γ' , Γ'-proof) = deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ x ty (∈*⇒∈ elem) in (ty , Γ' , ∅) , TAVar well-scoped elem is-aff Γ' Γ'-proof)
-          (λ is-rel → let (Γ' , Γ'-proof) = deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ x ty (∈*⇒∈ elem) in (ty , Γ' , (∅ ⸴ x)) , TRVar well-scoped elem is-rel Γ' Γ'-proof)
+          (λ is-rel → (ty , Γ , (∅ , x ↦ ty)) , TRVar well-scoped elem is-rel)
 typeOf Γ (` q ` b) = yes ((` q `Bool , Γ , ∅) , TBool)
 typeOf Γ (` q `unit) = yes ((` q `Unit , Γ , ∅) , TUnit)
 typeOf Γ (`if t₁ then t₂ else t₃) with typeOf Γ t₁
-... | no cond-untypable = no (λ { (_ , TIf  {q = q} {Γ₂ = Γ₂}  cond-bool _ _ _ _) → contradiction ((` q `Bool , Γ₂ , _) , cond-bool) cond-untypable})
+... | no cond-untypable = no (λ { (_ , TIf  {q = q} {Γ₂ = Γ₂}  cond-bool _ _ _ _ _) → contradiction ((` q `Bool , Γ₂ , _) , cond-bool) cond-untypable})
 ... | yes ((T-cond , Γ₂ , Ω₁) , cond-proof) with bool? T-cond
-... | no' cond-not-bool = no (λ { (_ , TIf  cond-bool _ _ _ _) → typing-contradiction cond-not-bool cond-bool cond-proof})
+... | no' cond-not-bool = no (λ { (_ , TIf  cond-bool _ _ _ _ _) → typing-contradiction cond-not-bool cond-bool cond-proof})
 ... | yes' (q , refl) with typeOf Γ₂ t₂ | typeOf Γ₂ t₃
 ... | no a  | _ = no (if-untypable-if-either-arm-untypable cond-proof (inj₁ a))
 ... | _        | no b =  no (if-untypable-if-either-arm-untypable cond-proof (inj₂ b))
-... | yes ((T-left , Γ₃-left , Ω₂) , left-proof) | yes ((T-right , Γ₃-right , Ω₃) , right-proof) with T-left ≟ₜ T-right | affineIntersection Γ₃-left Γ₃-right
-... | no type-mismatch | _ = no 
-      λ { ((T , Γ₃') , TIf cond' left right _ _) → case typing-unique cond-proof cond' of
+... | yes ((T-left , Γ₃-left , Ω₂) , left-proof) | yes ((T-right , Γ₃-right , Ω₃) , right-proof) with T-left ≟ₜ T-right | contextIntersection Γ₃-left Γ₃-right | contextIntersection Ω₂ Ω₃
+... | no type-mismatch | _ | _ = no 
+      λ { ((T , Γ₃') , TIf cond' left right _ _ _) → case typing-unique cond-proof cond' of
       λ {(refl , refl , refl) → case typing-unique left left-proof of
       λ {(refl , refl , refl) → case typing-unique right right-proof of
       λ {(refl , refl , refl) → contradiction refl type-mismatch}}}}
-... | _ | no no-intersect = no 
-      λ { ((T , Γ₃') , TIf cond' left right intersect _) → case typing-unique cond-proof cond' of
+... | _ | no no-intersect | _ = no 
+      λ { ((T , Γ₃') , TIf cond' left right intersect _ _) → case typing-unique cond-proof cond' of
       λ {(refl , refl , refl) → case typing-unique left left-proof of
       λ {(refl , refl , refl) → case typing-unique right right-proof of
       λ {(refl , refl , refl) → contradiction (_ , intersect) no-intersect}}}}
-... | yes refl | yes (Γ₅ , intersect) with mergeScopes3 Ω₁ Ω₂ Ω₃
-... | Ω₄ , Ω₄-proof = yes ((T-left , Γ₅ , Ω₄) , (TIf cond-proof left-proof right-proof intersect Ω₄-proof))
+... | _ | _ | no no-Ω-intersect = no 
+      λ { ((T , Γ₃') , TIf cond' left right intersect Ω-intersect _) → case typing-unique cond-proof cond' of
+      λ {(refl , refl , refl) → case typing-unique left left-proof of
+      λ {(refl , refl , refl) → case typing-unique right right-proof of
+      λ {(refl , refl , refl) → contradiction (_ , Ω-intersect) no-Ω-intersect}}}}
+... | yes refl | yes (Γ₅ , intersect) | yes (Ω₃ , Ω-intersect) with mergeScopes Ω₁ Ω₃
+... | Ω₄ , Ω₄-proof = yes ((T-left , Γ₅ , Ω₄) , (TIf cond-proof left-proof right-proof intersect Ω-intersect Ω₄-proof))
 typeOf Γ ((` q < x , y >) {x-well-scoped} {y-well-scoped}) with typeOf Γ (` y # y-well-scoped)
 ... | no y-untypable = no (λ { (_ , TPair {T₂ = T₂} {Γ₂ = Γ₂} _ _ y-typable _ _ _ _) → contradiction ((T₂ , Γ₂ , _) , y-typable) y-untypable})
 ... | yes ((T₂ , Γ₂ , Ω₁) , T₂-proof) with typeOf Γ₂ (` x # x-well-scoped)
