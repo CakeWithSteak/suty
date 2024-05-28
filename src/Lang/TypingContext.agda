@@ -72,8 +72,8 @@ typeLookup (Γ , y ↦ u) x with x ≟ₙ y
 ∈*⇒∈ (thereUnordered _ _ p) = there (∈*⇒∈ p)
 ∈*⇒∈ (thereOrdered _ _ _ p) = there (∈*⇒∈ p)
 
-data _⨾_÷_≡_ : TypingContext → Scope → TypingContext → TypingContext → Set where
-  divEmpty : (Γ : TypingContext) (Ω : Scope)  → Γ ⨾ Ω ÷ ∅ ≡ Γ
+data _⨾_÷_≡_ : TypingContext → TypingContext → TypingContext → TypingContext → Set where
+  divEmpty : (Γ : TypingContext) (Ω : TypingContext)  → Γ ⨾ Ω ÷ ∅ ≡ Γ
   
   -- When dividing by an unrestricted var, we assume that the returned context (Γ₁) still contains it (otherwise code removed it in error), but we want to remove it to uphold scoping rules, while also keeping all other bindings intact
   divUn : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄ Ω} →                                  Γ₁ ⨾ Ω ÷ Γ₂  ≡ Γ₃ → -- Recurse, using Γ₃ as an intermediate value
@@ -86,7 +86,7 @@ data _⨾_÷_≡_ : TypingContext → Scope → TypingContext → TypingContext 
   divAffUsed : ∀ {x t Γ₁ Γ₂ Γ₃ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃ → qualifierOf t ≡ aff → x ↦ t ∉* Γ₃ → Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₃
   divAffNotUsed : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃ → qualifierOf t ≡ aff → x ↦ t ∈* Γ₃ → Γ₃ - x ↦ t ≡ Γ₄  → Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₄
 
-  divRel : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃ → qualifierOf t ≡ rel → x ↦ t ∈* Γ₃ →  x ∈ Ω → Γ₃ - x ↦ t ≡ Γ₄ → Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₄
+  divRel : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃ → qualifierOf t ≡ rel → x ↦ t ∈* Γ₃ →  x ↦ t ∈ Ω → Γ₃ - x ↦ t ≡ Γ₄ → Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₄
 
   -- For lin/ord qualified types, we enforce usage by requiring that the returned context does not contain them
   divMustuse : ∀ {x t Γ₁ Γ₂ Γ₃ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃ → (qualifierOf t ≡ lin  ⊎ qualifierOf t ≡ ord) →  x ↦ t ∉* Γ₃ → Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₃
@@ -119,7 +119,7 @@ data _⨾_÷_≡_ : TypingContext → Scope → TypingContext → TypingContext 
 ÷-unique a@(divAffNotUsed x x₁ x₂ x₃) b@(divRel x₄ x₅ x₆ x₇ x₈) = sym $ ÷-unique b a
 ÷-unique a@(divMustuse x x₁ x₂) b@(divRel x₃ x₄ x₅ x₆ x₇) = sym $ ÷-unique b a
 
-divideContext : (Γ₁ : TypingContext) (Ω : Scope) (Γ₂ : TypingContext) → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃)
+divideContext : (Γ₁ : TypingContext) (Ω : TypingContext) (Γ₂ : TypingContext) → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃)
 divideContext Γ₁ Ω ∅ = yes (Γ₁ , divEmpty Γ₁ Ω)
 divideContext Γ₁ Ω (Γ₂ , x ↦ T) with divideContext Γ₁ Ω Γ₂
 ... | no nosub = no λ {
@@ -171,7 +171,7 @@ divideContext Γ₁ Ω (Γ₂ , x ↦ T) with divideContext Γ₁ Ω Γ₂
         (Γ₄ , divAffNotUsed _ T-aff _ _) →  contradiction (trans (sym T-aff) T-rel) (λ ());
         (Γ₄ , divRel sub' _ x∈Γ₃ _ _) → case ÷-unique sub sub' of λ { refl → contradiction x∈Γ₃ x∉Γ₃ };
         (Γ₄ , divMustuse _ T-lin-ord _ ) → [ (λ T-lin → case trans (sym T-lin) T-rel of λ ()) , ((λ T-ord → case trans (sym T-ord) T-rel of λ ()) ) ] T-lin-ord }
-    ... | yes x∈Γ₃ with ((x ↦ tt ∈? Ω) {_≟⊤_})
+    ... | yes x∈Γ₃ with ((x ↦ T ∈? Ω) {_≟ₜ_})
     ... | no x∉Ω = no λ {
         (Γ₄ , divUn _ T-un _ _) → contradiction (trans (sym T-un) T-rel) (λ ());
         (Γ₄ , divAffUsed _ T-aff _) →  contradiction (trans (sym T-aff) T-rel) (λ ());
@@ -181,48 +181,53 @@ divideContext Γ₁ Ω (Γ₂ , x ↦ T) with divideContext Γ₁ Ω Γ₂
     ... | yes x∈Ω with deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ₃ x T (∈*⇒∈ x∈Γ₃)
     ... | Γ₄ , Γ₄-proof = yes (Γ₄ , divRel sub T-rel x∈Γ₃ x∈Ω Γ₄-proof)
 
--- Affine context intersection: non-affine variables must appear in both contexts, while affine can appear in only one (in which case they are dropped) or both (in whcih case they are kept)
--- todo generalise this to be parametric over a qualifier, so that it can be reused for relevant types
-data _∩ₐ_≡_ : TypingContext → TypingContext → TypingContext → Set where
-  intersectEmptyR : ∀ {Γ} → Γ ∩ₐ ∅ ≡ ∅
-  intersectEmptyL : ∀ {Γ} → ∅ ∩ₐ Γ ≡ ∅
-  intersectNonAffine : ∀ {Γ₁ Γ₂ Γ x T} → qualifierOf T ≢ aff → Γ₁ ∩ₐ Γ₂ ≡ Γ → x ↦ T ∈ Γ₁  → Γ₁ ∩ₐ (Γ₂ , x ↦ T) ≡ (Γ , x ↦ T)
-  intersectAffineKeep : ∀  {Γ₁ Γ₂ Γ x T} → qualifierOf T ≡ aff →  Γ₁ ∩ₐ Γ₂ ≡ Γ → x ↦ T ∈ Γ₁ → Γ₁ ∩ₐ (Γ₂ , x ↦ T) ≡ (Γ , x ↦ T)
-  intersectAffineDrop : ∀  {Γ₁ Γ₂ Γ x T} → qualifierOf T ≡ aff →  Γ₁ ∩ₐ Γ₂ ≡ Γ → x ↦ T ∉ Γ₁ → Γ₁ ∩ₐ (Γ₂ , x ↦ T) ≡ Γ
+-- Qualifier-dependent context intersection: for a given q, non-q variables must appear in both contexts, while q variables can appear in only one (in which case they are dropped) or both (in whcih case they are kept)
+data _∩[_]_≡_ : TypingContext → Qualifier → TypingContext → TypingContext → Set where
+  intersectEmptyR : ∀ {Γ q} → Γ ∩[ q ] ∅ ≡ ∅
+  intersectEmptyL : ∀ {Γ q} → ∅ ∩[ q ] Γ ≡ ∅
+  intersectNonQ : ∀ {Γ₁ Γ₂ Γ x T q} → qualifierOf T ≢ q → Γ₁ ∩[ q ] Γ₂ ≡ Γ → x ↦ T ∈ Γ₁  → Γ₁ ∩[ q ]  (Γ₂ , x ↦ T) ≡ (Γ , x ↦ T)
+  intersectQKeep : ∀  {Γ₁ Γ₂ Γ x T q} → qualifierOf T ≡ q →  Γ₁ ∩[ q ] Γ₂ ≡ Γ → x ↦ T ∈ Γ₁ → Γ₁ ∩[ q ] (Γ₂ , x ↦ T) ≡ (Γ , x ↦ T)
+  intersectQDrop : ∀  {Γ₁ Γ₂ Γ x T q} → qualifierOf T ≡ q →  Γ₁ ∩[ q ] Γ₂ ≡ Γ → x ↦ T ∉ Γ₁ → Γ₁ ∩[ q ] (Γ₂ , x ↦ T) ≡ Γ
 
-affineIntersection : (Γ₁ Γ₂ : TypingContext) → Dec (Σ TypingContext (λ Γ → Γ₁ ∩ₐ Γ₂ ≡ Γ))
-affineIntersection ∅ ∅ = yes (∅ , intersectEmptyR)
-affineIntersection ∅ (Γ₂ , x ↦ x₁) = yes (∅ , intersectEmptyL)
-affineIntersection Γ₁ ∅ = yes (∅ , intersectEmptyR)
-affineIntersection Γ₁@(_ , _ ↦ _) (Γ₂ , x ↦ T) with affineIntersection Γ₁ Γ₂ | qualifierOf T ≟q aff | (x ↦ T ∈? Γ₁) {_≟ᵥ_ = _≟ₜ_}
+contextIntersection : {q : Qualifier} (Γ₁ Γ₂ : TypingContext) → Dec (Σ TypingContext (λ Γ → Γ₁ ∩[ q ] Γ₂ ≡ Γ))
+contextIntersection ∅ ∅ = yes (∅ , intersectEmptyR)
+contextIntersection ∅ (Γ₂ , x ↦ x₁) = yes (∅ , intersectEmptyL)
+contextIntersection Γ₁ ∅ = yes (∅ , intersectEmptyR)
+contextIntersection {q} Γ₁@(_ , _ ↦ _) (Γ₂ , x ↦ T) with contextIntersection Γ₁ Γ₂ | qualifierOf T ≟q q | (x ↦ T ∈? Γ₁) {_≟ᵥ_ = _≟ₜ_}
 ... | no nosub | _ | _ = no λ {
-  (_ , intersectNonAffine  {Γ = Γ} _ Γ-proof _) → contradiction (Γ , Γ-proof) nosub ;
-  (_ , intersectAffineKeep {Γ = Γ} _ Γ-proof _) → contradiction (Γ , Γ-proof) nosub ;
-  (_ , intersectAffineDrop {Γ = Γ} _ Γ-proof _) → contradiction (Γ , Γ-proof) nosub}
-... | yes (Γ , Γ-proof) | yes is-aff | yes in-Γ₁ = yes ((Γ , x ↦ T) , intersectAffineKeep is-aff Γ-proof in-Γ₁)
-... | yes (Γ , Γ-proof) | yes is-aff | no not-in-Γ₁ = yes (Γ , (intersectAffineDrop is-aff Γ-proof not-in-Γ₁)) 
-... | yes (Γ , Γ-proof) | no not-aff | yes in-Γ₁ = yes ((Γ , x ↦ T) , (intersectNonAffine not-aff Γ-proof in-Γ₁))
-... | yes (Γ , Γ-proof) | no not-aff | no not-in-Γ₁ = no λ {
-  (_ , intersectNonAffine _ _ in-Γ₁) → contradiction in-Γ₁ not-in-Γ₁ ;
-  (_ , intersectAffineKeep is-aff _ _) → contradiction is-aff not-aff ;
-  (_ , intersectAffineDrop is-aff _ _) → contradiction is-aff not-aff}
+  (_ , intersectNonQ  {Γ = Γ} _ Γ-proof _) → contradiction (Γ , Γ-proof) nosub ;
+  (_ , intersectQKeep {Γ = Γ} _ Γ-proof _) → contradiction (Γ , Γ-proof) nosub ;
+  (_ , intersectQDrop {Γ = Γ} _ Γ-proof _) → contradiction (Γ , Γ-proof) nosub}
+... | yes (Γ , Γ-proof) | yes is-q | yes in-Γ₁ = yes ((Γ , x ↦ T) , intersectQKeep is-q Γ-proof in-Γ₁)
+... | yes (Γ , Γ-proof) | yes is-q | no not-in-Γ₁ = yes (Γ , (intersectQDrop is-q Γ-proof not-in-Γ₁)) 
+... | yes (Γ , Γ-proof) | no not-q | yes in-Γ₁ = yes ((Γ , x ↦ T) , (intersectNonQ not-q Γ-proof in-Γ₁))
+... | yes (Γ , Γ-proof) | no not-q | no not-in-Γ₁ = no λ {
+  (_ , intersectNonQ _ _ in-Γ₁) → contradiction in-Γ₁ not-in-Γ₁ ;
+  (_ , intersectQKeep is-q _ _) → contradiction is-q not-q ;
+  (_ , intersectQDrop is-q _ _) → contradiction is-q not-q}
 
-affineIntersection-unique : ∀ {Γ₁ Γ₂ Γ Γ'} → Γ₁ ∩ₐ Γ₂ ≡ Γ → Γ₁ ∩ₐ Γ₂ ≡ Γ' → Γ ≡ Γ'
-affineIntersection-unique intersectEmptyR intersectEmptyR = refl
-affineIntersection-unique intersectEmptyR intersectEmptyL = refl
-affineIntersection-unique intersectEmptyL intersectEmptyR = refl
-affineIntersection-unique intersectEmptyL intersectEmptyL = refl
-affineIntersection-unique intersectEmptyL (intersectAffineDrop _ sub _) = affineIntersection-unique intersectEmptyL sub
-affineIntersection-unique (intersectNonAffine {x = x} {T = T} _ sub₁ _) (intersectNonAffine _ sub₂ _) = cong ((_, x ↦ T)) (affineIntersection-unique sub₁ sub₂)
-affineIntersection-unique (intersectNonAffine not-aff _ _) (intersectAffineKeep is-aff _ _) = contradiction is-aff not-aff
-affineIntersection-unique (intersectNonAffine not-aff _ _) (intersectAffineDrop is-aff _ _) = contradiction is-aff not-aff
-affineIntersection-unique (intersectAffineKeep is-aff _ _) (intersectNonAffine not-aff _ _) = contradiction is-aff not-aff
-affineIntersection-unique (intersectAffineKeep _ sub₁ _) (intersectAffineKeep _ sub₂ _) = cong _ (affineIntersection-unique sub₁ sub₂)
-affineIntersection-unique (intersectAffineKeep _ _ elem) (intersectAffineDrop _ _ not-elem) = contradiction elem not-elem
-affineIntersection-unique (intersectAffineDrop _ sub _) intersectEmptyL = affineIntersection-unique sub intersectEmptyL
-affineIntersection-unique (intersectAffineDrop is-aff _ _) (intersectNonAffine not-aff _ _) = contradiction is-aff not-aff
-affineIntersection-unique (intersectAffineDrop _ _ not-elem) (intersectAffineKeep _ _ elem) = contradiction elem not-elem
-affineIntersection-unique (intersectAffineDrop x a x₁) (intersectAffineDrop x₂ b x₃) = affineIntersection-unique a b
+contextIntersection-unique : ∀ {Γ₁ Γ₂ Γ Γ' q} → Γ₁ ∩[ q ] Γ₂ ≡ Γ → Γ₁ ∩[ q ] Γ₂ ≡ Γ' → Γ ≡ Γ'
+contextIntersection-unique intersectEmptyR intersectEmptyR = refl
+contextIntersection-unique intersectEmptyR intersectEmptyL = refl
+contextIntersection-unique intersectEmptyL intersectEmptyR = refl
+contextIntersection-unique intersectEmptyL intersectEmptyL = refl
+contextIntersection-unique intersectEmptyL (intersectQDrop _ sub _) = contextIntersection-unique intersectEmptyL sub
+contextIntersection-unique (intersectNonQ {x = x} {T = T} _ sub₁ _) (intersectNonQ _ sub₂ _) = cong ((_, x ↦ T)) (contextIntersection-unique sub₁ sub₂)
+contextIntersection-unique (intersectNonQ not-q _ _) (intersectQKeep is-q _ _) = contradiction is-q not-q
+contextIntersection-unique (intersectNonQ not-q _ _) (intersectQDrop is-q _ _) = contradiction is-q not-q
+contextIntersection-unique (intersectQKeep is-q _ _) (intersectNonQ not-q _ _) = contradiction is-q not-q
+contextIntersection-unique (intersectQKeep _ sub₁ _) (intersectQKeep _ sub₂ _) = cong _ (contextIntersection-unique sub₁ sub₂)
+contextIntersection-unique (intersectQKeep _ _ elem) (intersectQDrop _ _ not-elem) = contradiction elem not-elem
+contextIntersection-unique (intersectQDrop _ sub _) intersectEmptyL = contextIntersection-unique sub intersectEmptyL
+contextIntersection-unique (intersectQDrop is-q _ _) (intersectNonQ not-q _ _) = contradiction is-q not-q
+contextIntersection-unique (intersectQDrop _ _ not-elem) (intersectQKeep _ _ elem) = contradiction elem not-elem
+contextIntersection-unique (intersectQDrop x a x₁) (intersectQDrop x₂ b x₃) = contextIntersection-unique a b
+
+_∩ₐ_≡_ : TypingContext → TypingContext → TypingContext → Set
+Γ₁ ∩ₐ Γ₂ ≡ Γ₃ = Γ₁ ∩[ aff ] Γ₂ ≡ Γ₃
+
+_∩ᵣ_≡_ : TypingContext → TypingContext → TypingContext → Set
+Γ₁ ∩ᵣ Γ₂ ≡ Γ₃ = Γ₁ ∩[ rel ] Γ₂ ≡ Γ₃
 
 _⟨⟨_⟩⟩ : REL Qualifier TypingContext 0ℓ
 q ⟨⟨ Γ ⟩⟩ = All (λ _ ty → q ⟨ ty ⟩) Γ

@@ -81,4 +81,16 @@ main = run (List.sequence′ $ intersperse (putStrLn "==========================
                (` aff < x , x >)) -- bad: affine var used twice
         ∷ (`let x := ` aff `unit ⇒
                (`if (` un ` true) then `eat ` x else ` un `unit)) -- good: affine var used once in one control path and zero times in another
+        ∷ (`let x := ` rel `unit ⇒
+               (`if (` un ` true) then `eat ` x else `eat ` x))  -- good: relevant var used once in each control path
+         ∷ (`let x := ` rel `unit ⇒
+               (`if (` un ` true) then `eat ` x else ` un `unit))  -- bad: relevant var used in only one control path
+         ∷ (`let x := ` rel `unit ⇒
+               (`if (` un ` true) then ` un `unit  else `eat ` x)) -- bad: relevant var used in only one control path
+          ∷ (`let x := ` rel `unit ⇒
+               (`if (` un ` true) then ` un `unit  else ` un `unit)) -- bad: relevant var used in neither control path
+          ∷ (`let x := ` rel `unit ⇒
+               (`if (`let y := `eat ` x ⇒ ` un ` true) then ` un `unit  else ` un `unit)) -- good: relevant var used in condition
+          ∷ (`let x := ` rel `unit ⇒
+               (`if (` un ` true) then ` un `unit  else ` un `unit)) -- bad: relevant var never used
       ∷ []
