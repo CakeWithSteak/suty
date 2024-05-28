@@ -1,7 +1,6 @@
 open import Data.String
 open import Relation.Binary.Definitions
 
--- todo: eraseAbstractName should be an injection
 module Raw.Erasure {abstractName : Set} {_≟ₙ'_ : DecidableEquality abstractName} (eraseAbstractName : abstractName → String) where
 
 open import Raw.Base

@@ -133,30 +133,30 @@ typing-unique (TIf cond-bool₁ left-T₁ right-T₁ intersect₁ Ω-intersect�
 ... | (refl , refl , refl) with typing-unique right-T₁ right-T₂
 ... | (refl , refl , refl) with contextIntersection-unique intersect₁ intersect₂
 ... | refl with contextIntersection-unique Ω-intersect₁ Ω-intersect₂
-... | refl with mergeScopes-unique Ω-merge₁ Ω-merge₂
+... | refl with mergeContext-unique Ω-merge₁ Ω-merge₂
 ... | refl = refl , refl , refl
 typing-unique (TEat a) (TEat b) with typing-unique a b
 ... | refl , refl , refl = refl , refl , refl
 typing-unique (TPair _ _ left₁ right₁ _ _ Ω-merge₁) (TPair _ _ left₂ right₂ _ _ Ω-merge₂) with typing-unique left₁ left₂
 ... | (refl , refl , refl) with typing-unique right₁ right₂
-... | (refl , refl , refl) with mergeScopes-unique Ω-merge₁ Ω-merge₂
+... | (refl , refl , refl) with mergeContext-unique Ω-merge₁ Ω-merge₂
 ... | refl = refl , refl , refl
 typing-unique (TSplit _ _ _ arg₁ body₁ div₁ Ω-merge₁) (TSplit _ _ _ arg₂ body₂ div₂ Ω-merge₂) with typing-unique arg₁ arg₂
 ... | (refl , refl , refl) with typing-unique body₁ body₂
 ... | (refl , refl , refl) with ÷-unique div₁ div₂
-... | refl with mergeScopes-unique Ω-merge₁ Ω-merge₂
+... | refl with mergeContext-unique Ω-merge₁ Ω-merge₂
 ... | refl = refl , refl , refl
 typing-unique (TLet _ arg₁ body₁ div₁ Ω-merge₁) (TLet _ arg₂ body₂ div₂ Ω-merge₂) with typing-unique arg₁ arg₂
 ... | (refl , refl , refl) with typing-unique body₁ body₂
 ... | (refl , refl , refl) with ÷-unique div₁ div₂
-... | refl with mergeScopes-unique Ω-merge₁ Ω-merge₂
+... | refl with mergeContext-unique Ω-merge₁ Ω-merge₂
 ... | refl = refl , refl , refl
 typing-unique (TAbs _ _ _ body₁ div₁) (TAbs _ _ _ body₂ div₂) with typing-unique body₁ body₂
 ... | (refl , refl , refl) with ÷-unique div₁ div₂
 ... | refl = refl , refl , refl
 typing-unique (TApp _ _ _ fun₁ arg₁ Ω-merge₁) (TApp _ _ _ fun₂ arg₂ Ω-merge₂) with typing-unique fun₁ fun₂
 ... | (refl , refl , refl) with typing-unique arg₁ arg₂
-... | (refl , refl , refl) with mergeScopes-unique Ω-merge₁ Ω-merge₂
+... | (refl , refl , refl) with mergeContext-unique Ω-merge₁ Ω-merge₂
 ... | refl = refl , refl , refl
 
 typing-contradiction : ∀ {a} {Whatever : Set a} → T₁ ≢ T₂ → Γ ⊢ t :: T₁ , Γ₂ ⨾ Ω₁ → Γ ⊢ t :: T₂ , Γ₃ ⨾ Ω₂ → Whatever
