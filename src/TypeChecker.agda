@@ -62,7 +62,7 @@ typeOf Γ (`if t₁ then t₂ else t₃) with typeOf Γ t₁
       λ {(refl , refl , refl) → case typing-unique left left-proof of
       λ {(refl , refl , refl) → case typing-unique right right-proof of
       λ {(refl , refl , refl) → contradiction (_ , Ω-intersect) no-Ω-intersect}}}}
-... | yes refl | yes (Γ₅ , intersect) | yes (Ω₃ , Ω-intersect) with mergeScopes Ω₁ Ω₃
+... | yes refl | yes (Γ₅ , intersect) | yes (Ω₃ , Ω-intersect) with mergeContext Ω₁ Ω₃
 ... | Ω₄ , Ω₄-proof = yes ((T-left , Γ₅ , Ω₄) , (TIf cond-proof left-proof right-proof intersect Ω-intersect Ω₄-proof))
 typeOf Γ ((` q < x , y >) {x-well-scoped} {y-well-scoped}) with typeOf Γ (` y # y-well-scoped)
 ... | no y-untypable = no (λ { (_ , TPair {T₂ = T₂} {Γ₂ = Γ₂} _ _ y-typable _ _ _ _) → contradiction ((T₂ , Γ₂ , _) , y-typable) y-untypable})
@@ -71,17 +71,17 @@ typeOf Γ ((` q < x , y >) {x-well-scoped} {y-well-scoped}) with typeOf Γ (` y 
 ... | yes ((T₁ , Γ₃ , Ω₂) , T₁-proof) with canContain? q T₁ | canContain? q T₂
 ... | no a | _ = no (λ { ((T , Γ') , TPair _ _ proof-y proof-x containment-x _ _) → case typing-unique proof-y T₂-proof of λ {(refl , refl , refl) → case typing-unique proof-x T₁-proof of case typing-unique T₁-proof proof-x  of λ {(refl , refl , refl) → contradiction containment-x a}}})
 ... | _       | no b = no (λ { ((T , Γ') , TPair _ _ proof-y proof-x _ containment-y _) → case typing-unique proof-y T₂-proof of λ {(refl , refl , refl) → case typing-unique proof-x T₁-proof of case typing-unique T₂-proof proof-y  of λ {(refl , refl , refl) → contradiction containment-y b}}})
-... | yes containment-x | yes containment-y with mergeScopes Ω₁ Ω₂
+... | yes containment-x | yes containment-y with mergeContext Ω₁ Ω₂
 ... | Ω₃ , Ω₃-proof = yes (((` q ` T₁ `× T₂) , Γ₃ , Ω₃) , (TPair x-well-scoped y-well-scoped T₂-proof T₁-proof containment-x containment-y Ω₃-proof))
 typeOf Γ ((`split t₁ as x , y ⇒ t₂) {x-uniq} {y-uniq} {x≢y}) with typeOf Γ t₁
 ... | no t₁-untypable = no (λ { (_ , TSplit {q = q} {T₁ = T₁} {T₂ = T₂} {Γ₂ = Γ₂} _ _ _ t₁-typable _ _ _) → contradiction ((` q ` T₁ `× T₂ , Γ₂ , _) , t₁-typable) t₁-untypable})
 ... | yes ((T₁ , Γ₂ , Ω₁) , T₁-proof) with product? T₁
-... | no' not-prod = no (λ { (_ , TSplit  _ _ _ t₁-proof _ _ _) → case typing-unique T₁-proof t₁-proof of λ {(refl , refl , refl) → contradiction refl not-prod}}) -- todo use typing-contradiction
+... | no' not-prod = no (λ { (_ , TSplit  _ _ _ t₁-proof _ _ _) → typing-contradiction not-prod T₁-proof t₁-proof})
 ... | yes' ((q , T₁₁ , T₁₂) , refl) with typeOf ((Γ₂ , x ↦ T₁₁) , y ↦ T₁₂) t₂
 ... | no t₂-untypable = no (λ { (_ , TSplit {T = T₂} {Γ₃ = Γ₃} _ _ _ t₁-proof t₂-proof _ _) → case typing-unique T₁-proof t₁-proof of λ {(refl , refl , refl) → contradiction ((T₂ , Γ₃ , _) , t₂-proof) t₂-untypable}})
 ... | yes ((T₂ , Γ₃ , Ω₂) , T₂-proof) with divideContext Γ₃ Ω₂ ((∅ , x ↦ T₁₁) , y ↦ T₁₂)
 ... | no Γ₃-nodiv = no (λ { (_ , TSplit {Γ₄ = Γ₄} _ _ _ t₁-proof t₂-proof Γ₃-div _) → case typing-unique T₁-proof t₁-proof of λ { (refl , refl , refl) → case typing-unique T₂-proof t₂-proof of λ {(refl , refl , refl) → contradiction ((Γ₄ , Γ₃-div)) Γ₃-nodiv}}})
-... | yes (Γ₄ , Γ₄-proof) with mergeScopes Ω₁ Ω₂
+... | yes (Γ₄ , Γ₄-proof) with mergeContext Ω₁ Ω₂
 ... | Ω₃ , Ω₃-proof = yes ((T₂ , Γ₄ , Ω₃) , (TSplit x-uniq y-uniq x≢y T₁-proof T₂-proof Γ₄-proof Ω₃-proof ))
 typeOf Γ ((` q ƛ x :: T₁ ⇒ t) {q-not-ord} {x-uniq})  with canContainCtx? q Γ
 ... | no bad-containment = no (λ {(_ , TAbs _ _ Γ-containment _ _) → contradiction Γ-containment bad-containment})
@@ -93,12 +93,12 @@ typeOf Γ ((` q ƛ x :: T₁ ⇒ t) {q-not-ord} {x-uniq})  with canContainCtx? q
 typeOf Γ ((x · y) {well-scoped-x} {well-scoped-y}) with typeOf Γ (` x # well-scoped-x)
 ... | no x-untypable = no ((λ { (_ , TApp {q = q} {T₁ = T₁} {T₂ = T₂} {Γ₂ = Γ₂} _ _ pq x-typable  _ _) →  contradiction (((` q ` T₁ ⇒ T₂) , Γ₂ , _) , x-typable) x-untypable }))
 ... | yes ((T₁ , Γ₂ , Ω₁) , T₁-proof) with arrow? T₁
-... | no' not-arrow = no λ { (_ , TApp _ _ _ x-proof _ _) → case typing-unique T₁-proof x-proof of λ { (refl , refl , refl) → contradiction refl not-arrow } } -- todo use typing-contradiction
+... | no' not-arrow = no λ { (_ , TApp _ _ _ x-proof _ _) → typing-contradiction not-arrow T₁-proof x-proof }
 ... | yes' (q , (q-not-ord , T₁₁ , T₁₂) , refl) with typeOf Γ₂ (` y # well-scoped-y)
 ... | no y-untypable = no λ { (_ , TApp {Γ₃ = Γ₃} _ _ _ x-proof y-proof _) → case typing-unique T₁-proof x-proof of λ { (refl , refl , refl) → contradiction ((T₁₁ , Γ₃ , _) , y-proof) y-untypable} }
 ... | yes ((T₂ , Γ₃ , Ω₂) , T₂-proof) with T₂ ≟ₜ T₁₁
 ... | no wrong-T₂ = no λ { (_ , TApp _ _ _ x-proof y-proof _) → case typing-unique T₁-proof x-proof of λ { (refl , refl , refl) → case typing-unique T₂-proof y-proof of λ { (refl , refl , refl) → contradiction refl wrong-T₂ }} }
-... | yes refl with mergeScopes Ω₁ Ω₂
+... | yes refl with mergeContext Ω₁ Ω₂
 ... | Ω₃ , Ω₃-proof = yes ((T₁₂ , Γ₃ , Ω₃) , (TApp well-scoped-x well-scoped-y q-not-ord T₁-proof T₂-proof Ω₃-proof))
 typeOf Γ ((`let x := t₁ ⇒ t₂) {x-uniq}) with typeOf Γ t₁
 ... | no t₁-untypable = no λ {(_ , TLet {T₁ = T₁} {Γ₂ = Γ₂} _ t₁-typable _ _ _) → contradiction ((T₁ , Γ₂ , _) , t₁-typable) t₁-untypable }
@@ -106,7 +106,7 @@ typeOf Γ ((`let x := t₁ ⇒ t₂) {x-uniq}) with typeOf Γ t₁
 ... | no t₂-untypable = no λ {(_ , TLet {T₂ = T₂} {Γ₃ = Γ₃} _ t₁-typable t₂-typable _ _) → case typing-unique T₁-proof t₁-typable of λ { (refl , refl , refl) → contradiction ((T₂ , Γ₃ , _) , t₂-typable) t₂-untypable } }
 ... | yes ((T₂ , Γ₃ , Ω₂) , T₂-proof) with divideContext Γ₃ Ω₂ (∅ , x ↦ T₁)
 ... | no Γ₃-nodiv = no  λ {(_ , TLet  {Γ₄ = Γ₄} _ t₁-typable t₂-typable Γ₃-div _) → case typing-unique T₁-proof t₁-typable of λ { (refl , refl , refl) → case typing-unique T₂-proof t₂-typable of λ { (refl , refl , refl) →  contradiction ((Γ₄ , Γ₃-div)) Γ₃-nodiv} } }
-... | yes (Γ₄ , Γ₄-proof) with mergeScopes Ω₁ Ω₂
+... | yes (Γ₄ , Γ₄-proof) with mergeContext Ω₁ Ω₂
 ... | Ω₃ , Ω₃-proof = yes ((T₂ , Γ₄ , Ω₃) , (TLet x-uniq T₁-proof T₂-proof Γ₄-proof Ω₃-proof))
 typeOf Γ (`eat t) with typeOf Γ t
 ... | no t-untypable = no λ {(_ , TEat {q = q} {Γ₂ = Γ₂} t-typable) → contradiction ((` q `Unit , Γ₂ , _) , t-typable) t-untypable}
