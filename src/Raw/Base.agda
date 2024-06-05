@@ -6,6 +6,8 @@ open import Data.String renaming (_≟_ to _≟ₛ_)
 open import Data.Bool.Show renaming (show to showBool)
 open import Function using (_$_)
 
+-- Raw types and terms without any embedded proofs
+
 name = String
 _≟ₙ_ = _≟ₛ_
 

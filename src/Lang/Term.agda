@@ -8,6 +8,7 @@ open import Lang.Qualifier
 open import Lang.Type
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_)
 
+-- Enriched terms: contain proofs of well-scopedness as well as forbid ord functions
 data Term (α : Scope) : Set where
   `_#_ : (x : name) → x ∈ α → Term α
   `_`_ :  Qualifier → Bool → Term α
