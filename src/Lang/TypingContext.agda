@@ -19,6 +19,7 @@ open import Data.Sum
 open import Data.Empty
 open import Data.Unit renaming (_≟_ to _≟⊤_)
 
+-- Context with some extra functionality
 TypingContext : Set
 TypingContext = Context Type
 
@@ -52,19 +53,20 @@ x ↦ ty ∈*? (Γ , y ↦ u) with x ≟ₙ y | ty ≟ₜ u | x ↦ ty ∈*? Γ 
 ∈*-unique (thereOrdered x x₁ x₂ a) (thereUnordered x₃ x₄ b) = ∈*-unique a b
 ∈*-unique (thereOrdered x x₁ x₂ a) (thereOrdered x₃ x₄ x₅ b) = ∈*-unique a b
 
+-- Evalautor for ordered inclusion
 typeLookup : (Γ : TypingContext) (x : name) → Dec (Σ[ ty ∈ Type ] x ↦ ty ∈* Γ)
 typeLookup ∅ x = no λ { (ty , ())}
-typeLookup (Γ , y ↦ u) x with x ≟ₙ y
-... | yes refl  = yes (u , here)
-... | no x≢y with typeLookup Γ x
-...   | no nosub = no (λ { (ty , here) → contradiction refl x≢y ; (ty , thereUnordered _ _ sub) → contradiction (ty , sub) nosub ; (ty , thereOrdered _ _ _ sub) → contradiction (ty , sub) nosub})
-...   | yes (ty , sub) with ordQualified? ty | ordQualified? u
-...     | yes ty-ord | no u-not-ord = yes (ty , (thereOrdered x≢y (fromWitness ty-ord) (fromWitnessFalse u-not-ord) sub))
-...     | yes ty-ord | yes u-ord = no λ {
+typeLookup (Γ , y ↦ u) x with x ≟ₙ y -- is the target at the head of the context?
+... | yes refl  = yes (u , here)                    -- yes: we are done
+... | no x≢y with typeLookup Γ x       -- no: is it somewhere else in the context?
+...   | no nosub = no (λ { (ty , here) → contradiction refl x≢y ; (ty , thereUnordered _ _ sub) → contradiction (ty , sub) nosub ; (ty , thereOrdered _ _ _ sub) → contradiction (ty , sub) nosub}) -- no: fail
+...   | yes (ty , sub) with ordQualified? ty | ordQualified? u -- yes: is the type we found ord? is the type at the head ord?
+...     | yes ty-ord | no u-not-ord = yes (ty , (thereOrdered x≢y (fromWitness ty-ord) (fromWitnessFalse u-not-ord) sub)) -- result is ord, head is not: success via thereOrdered
+...     | yes ty-ord | yes u-ord = no λ {  -- result is ord, but head is also ord: fail, the head blocks the target
           (ty' , here) → contradiction refl x≢y ;
           (ty' , thereUnordered _ ty'-not-ord sub') → case ∈*-unique sub sub' of λ {refl → contradiction ty-ord (toWitnessFalse ty'-not-ord)} ;
           (ty' , thereOrdered _ _  u-not-ord _) → contradiction u-ord (toWitnessFalse u-not-ord)}
-...    | no ty-not-ord | _ = yes (ty , (thereUnordered x≢y (fromWitnessFalse ty-not-ord) sub))
+...    | no ty-not-ord | _ = yes (ty , (thereUnordered x≢y (fromWitnessFalse ty-not-ord) sub))  -- result is not ord: success via thereUnordered
 
 -- "Weakens" ∈* into ∈
 ∈*⇒∈ : ∀ {x t Γ} → x ↦ t ∈* Γ → x ↦ t ∈ Γ
@@ -72,24 +74,45 @@ typeLookup (Γ , y ↦ u) x with x ≟ₙ y
 ∈*⇒∈ (thereUnordered _ _ p) = there (∈*⇒∈ p)
 ∈*⇒∈ (thereOrdered _ _ _ p) = there (∈*⇒∈ p)
 
+-- Context division: enforces scoping and usage rules
 data _⨾_÷_≡_ : TypingContext → TypingContext → TypingContext → TypingContext → Set where
   divEmpty : (Γ : TypingContext) (Ω : TypingContext)  → Γ ⨾ Ω ÷ ∅ ≡ Γ
   
   -- When dividing by an unrestricted var, we assume that the returned context (Γ₁) still contains it (otherwise code removed it in error), but we want to remove it to uphold scoping rules, while also keeping all other bindings intact
-  divUn : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄ Ω} →                                  Γ₁ ⨾ Ω ÷ Γ₂  ≡ Γ₃ → -- Recurse, using Γ₃ as an intermediate value
-                                                                           qualifierOf t ≡ un → -- Rule applies only for unrestricted vars
-                                                                                      x ↦ t ∈* Γ₃ → -- Binding should not have disappeared
-                                                                             Γ₃ - x ↦ t ≡ Γ₄  → -- Result context Γ₄ must be Γ₃ but with the x ↦ t binding deleted
-                                                                             Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₄
+  divUn : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄ Ω} →   Γ₁ ⨾ Ω ÷ Γ₂  ≡ Γ₃ -- Recurse, using Γ₃ as an intermediate value
+                                                        → qualifierOf t ≡ un -- Rule applies only for unrestricted vars
+                                                        → x ↦ t ∈* Γ₃  -- Binding should not have disappeared
+                                                        →   Γ₃ - x ↦ t ≡ Γ₄  -- Result context Γ₄ must be Γ₃ but with the x ↦ t binding deleted
+                                                       --------------------------------------------------------
+                                                        →   Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₄
 
   -- For aff qualified types, we allow them to both be in the returned context (in which case we remove them, see above) or not, as they may or may not be used
-  divAffUsed : ∀ {x t Γ₁ Γ₂ Γ₃ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃ → qualifierOf t ≡ aff → x ↦ t ∉* Γ₃ → Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₃
-  divAffNotUsed : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃ → qualifierOf t ≡ aff → x ↦ t ∈* Γ₃ → Γ₃ - x ↦ t ≡ Γ₄  → Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₄
+  divAffUsed : ∀ {x t Γ₁ Γ₂ Γ₃ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃
+                                                             → qualifierOf t ≡ aff
+                                                             → x ↦ t ∉* Γ₃
+                                                             --------------------------------------------------------
+                                                             → Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₃
+                                                             
+  divAffNotUsed : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃
+                                                                          → qualifierOf t ≡ aff
+                                                                          → x ↦ t ∈* Γ₃ → Γ₃ - x ↦ t ≡ Γ₄
+                                                                           --------------------------------------------------------
+                                                                          → Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₄
 
-  divRel : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃ → qualifierOf t ≡ rel → x ↦ t ∈* Γ₃ →  x ↦ t ∈ Ω → Γ₃ - x ↦ t ≡ Γ₄ → Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₄
+  -- Relevant terms must be in the usage context, and are deleted fro mthe output to uphold scoping
+  divRel : ∀ {x t Γ₁ Γ₂ Γ₃ Γ₄ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃
+                                                        → qualifierOf t ≡ rel
+                                                        → x ↦ t ∈* Γ₃
+                                                        →  x ↦ t ∈ Ω → Γ₃ - x ↦ t ≡ Γ₄
+                                                        --------------------------------------------------------
+                                                        → Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₄
 
   -- For lin/ord qualified types, we enforce usage by requiring that the returned context does not contain them
-  divMustuse : ∀ {x t Γ₁ Γ₂ Γ₃ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃ → (qualifierOf t ≡ lin  ⊎ qualifierOf t ≡ ord) →  x ↦ t ∉* Γ₃ → Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₃
+  divMustuse : ∀ {x t Γ₁ Γ₂ Γ₃ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃
+                                                              → (qualifierOf t ≡ lin  ⊎ qualifierOf t ≡ ord)
+                                                              →  x ↦ t ∉* Γ₃
+                                                              --------------------------------------------------------
+                                                              → Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ t) ≡ Γ₃
 
 ÷-unique : ∀ {Γ₁ Γ₂ Γ₃ Γ₄ Ω} → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃ → Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₄ → Γ₃ ≡ Γ₄
 ÷-unique (divEmpty _ _) (divEmpty _ _) = refl
@@ -121,14 +144,14 @@ data _⨾_÷_≡_ : TypingContext → TypingContext → TypingContext → Typing
 
 divideContext : (Γ₁ : TypingContext) (Ω : TypingContext) (Γ₂ : TypingContext) → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ⨾ Ω ÷ Γ₂ ≡ Γ₃)
 divideContext Γ₁ Ω ∅ = yes (Γ₁ , divEmpty Γ₁ Ω)
-divideContext Γ₁ Ω (Γ₂ , x ↦ T) with divideContext Γ₁ Ω Γ₂
-... | no nosub = no λ {
+divideContext Γ₁ Ω (Γ₂ , x ↦ T) with divideContext Γ₁ Ω Γ₂ -- handle the tail of the context first
+... | no nosub = no λ { -- tail failed: fail
   (Γ₄ , divUn {Γ₃ = Γ₃} sub _ _ _) → contradiction (Γ₃ , sub) nosub ;
   (Γ₃ , divAffUsed sub _ _) → contradiction (Γ₃ , sub) nosub ;
   (Γ₄ , divAffNotUsed {Γ₃ = Γ₃} sub _ _ _) → contradiction (Γ₃ , sub) nosub ;
   (Γ₃ , divMustuse sub _ _) → contradiction (Γ₃ , sub) nosub ;
   (Γ₄ , divRel {Γ₃ = Γ₃} sub _ _ _ _) → contradiction (Γ₃ , sub) nosub }
-... | yes (Γ₃ , sub) = qualifierCases T div-un div-lin div-ord div-aff div-rel
+... | yes (Γ₃ , sub) = qualifierCases T div-un div-lin div-ord div-aff div-rel -- tail succeeded: handle each qualifier of the head separately
   where
     div-un : qualifierOf T ≡ un → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ T) ≡ Γ₃)
     div-lin : qualifierOf T ≡ lin → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ T) ≡ Γ₃)
@@ -137,48 +160,48 @@ divideContext Γ₁ Ω (Γ₂ , x ↦ T) with divideContext Γ₁ Ω Γ₂
     div-rel : qualifierOf T ≡ rel → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ T) ≡ Γ₃)
     div-lin-ord : (qualifierOf T ≡ lin) ⊎ (qualifierOf T ≡ ord) → Dec (Σ[ Γ₃ ∈ TypingContext ] Γ₁ ⨾ Ω ÷ (Γ₂ , x ↦ T) ≡ Γ₃)
 
-    div-un T-un with x ↦ T ∈*? Γ₃
-    ... | no not-elem = no λ {
+    div-un T-un with x ↦ T ∈*? Γ₃ -- is the binding in the output?
+    ... | no not-elem = no λ { -- no: fail
       (Γ₄ , divUn sub' _ elem _) → case ÷-unique sub sub' of λ {refl → contradiction elem not-elem} ;
       (Γ₄ , divAffUsed _ T-aff _) → contradiction (trans (sym T-aff) T-un) (λ ()) ;
       (Γ₄ , divAffNotUsed _ T-aff _ _) → contradiction (trans (sym T-aff) T-un) (λ ()) ;
       (Γ₄ , divMustuse _ T-lin-ord _) → [ (λ T-lin → case trans (sym T-lin) T-un of λ ()) , ((λ T-ord → case trans (sym T-ord) T-un of λ ()) ) ] T-lin-ord ;
       (Γ₄ , divRel sub' _ elem _ _) → case ÷-unique sub sub' of λ {refl → contradiction elem not-elem} }
-    ... | yes elem with deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ₃ x T (∈*⇒∈ elem)
+    ... | yes elem with deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ₃ x T (∈*⇒∈ elem) -- yes: delete the binding and succeed
     ... | Γ₄ , Γ₄-proof = yes (Γ₄ , (divUn sub T-un elem Γ₄-proof))
 
     div-lin T-lin = div-lin-ord $ inj₁ T-lin
     div-ord T-ord = div-lin-ord $ inj₂ T-ord
 
-    div-lin-ord T-lin-ord with x ↦ T ∈*? Γ₃
-    ... | yes elem = no λ {
+    div-lin-ord T-lin-ord with x ↦ T ∈*? Γ₃ -- is the binding in the output?
+    ... | yes elem = no λ { -- yes: fail
       (Γ₄ , divUn p T-un x₁ x₂) → [ (λ T-lin → case trans (sym T-lin) T-un of λ ()) , ((λ T-ord → case trans (sym T-ord) T-un of λ ()) ) ] T-lin-ord ;
       (Γ₄ , divAffUsed p T-aff x₁) → [ (λ T-lin → case trans (sym T-lin) T-aff of λ ()) , ((λ T-ord → case trans (sym T-ord) T-aff of λ ()) ) ] T-lin-ord  ;
       (Γ₄ , divAffNotUsed p T-aff x₁ x₂) → [ (λ T-lin → case trans (sym T-lin) T-aff of λ ()) , ((λ T-ord → case trans (sym T-ord) T-aff of λ ()) ) ] T-lin-ord  ;
       (Γ₄ , divMustuse sub' _ not-elem) → case ÷-unique sub sub' of λ {refl → contradiction elem not-elem} ;
       (Γ₄ , divRel _ T-rel _ _ _) →  [ (λ T-lin → case trans (sym T-lin) T-rel of λ ()) , ((λ T-ord → case trans (sym T-ord) T-rel of λ ()) ) ] T-lin-ord }
-    ... | no not-elem = yes (Γ₃ , divMustuse sub T-lin-ord not-elem)
+    ... | no not-elem = yes (Γ₃ , divMustuse sub T-lin-ord not-elem) -- no: succeed
 
-    div-aff T-aff with x ↦ T ∈*? Γ₃
-    ... | no not-elem = yes (Γ₃ , divAffUsed sub T-aff not-elem)
-    ... | yes elem with deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ₃ x T (∈*⇒∈ elem)
+    div-aff T-aff with x ↦ T ∈*? Γ₃ -- is the binding in the output?
+    ... | no not-elem = yes (Γ₃ , divAffUsed sub T-aff not-elem) -- no: use divAffUsed
+    ... | yes elem with deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ₃ x T (∈*⇒∈ elem) -- yes: delete the bindign and use divAffNotUsed
     ... | Γ₄ , Γ₄-proof = yes (Γ₄ , divAffNotUsed sub T-aff elem Γ₄-proof)
     
-    div-rel T-rel with x ↦ T ∈*? Γ₃
-    ... | no x∉Γ₃ = no λ {
+    div-rel T-rel with x ↦ T ∈*? Γ₃ -- is the binding in the output?
+    ... | no x∉Γ₃ = no λ { -- no: fail
         (Γ₄ , divUn _ T-un _ _) → contradiction (trans (sym T-un) T-rel) (λ ());
         (Γ₄ , divAffUsed _ T-aff _) →  contradiction (trans (sym T-aff) T-rel) (λ ());
         (Γ₄ , divAffNotUsed _ T-aff _ _) →  contradiction (trans (sym T-aff) T-rel) (λ ());
         (Γ₄ , divRel sub' _ x∈Γ₃ _ _) → case ÷-unique sub sub' of λ { refl → contradiction x∈Γ₃ x∉Γ₃ };
         (Γ₄ , divMustuse _ T-lin-ord _ ) → [ (λ T-lin → case trans (sym T-lin) T-rel of λ ()) , ((λ T-ord → case trans (sym T-ord) T-rel of λ ()) ) ] T-lin-ord }
-    ... | yes x∈Γ₃ with ((x ↦ T ∈? Ω) {_≟ₜ_})
-    ... | no x∉Ω = no λ {
+    ... | yes x∈Γ₃ with ((x ↦ T ∈? Ω) {_≟ₜ_}) -- yes: is the binding in the usage context?
+    ... | no x∉Ω = no λ { -- no: fail
         (Γ₄ , divUn _ T-un _ _) → contradiction (trans (sym T-un) T-rel) (λ ());
         (Γ₄ , divAffUsed _ T-aff _) →  contradiction (trans (sym T-aff) T-rel) (λ ());
         (Γ₄ , divAffNotUsed _ T-aff _ _) →  contradiction (trans (sym T-aff) T-rel) (λ ());
         (Γ₄ , divRel sub' _ x∈Γ₃ x∈Ω _) → case ÷-unique sub sub' of λ { refl → contradiction x∈Ω x∉Ω };
         (Γ₄ , divMustuse _ T-lin-ord _ ) → [ (λ T-lin → case trans (sym T-lin) T-rel of λ ()) , ((λ T-ord → case trans (sym T-ord) T-rel of λ ()) ) ] T-lin-ord }
-    ... | yes x∈Ω with deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ₃ x T (∈*⇒∈ x∈Γ₃)
+    ... | yes x∈Ω with deleteBinding {_≟ᵥ_ = _≟ₜ_} Γ₃ x T (∈*⇒∈ x∈Γ₃) -- yes: delete the binding and succeed
     ... | Γ₄ , Γ₄-proof = yes (Γ₄ , divRel sub T-rel x∈Γ₃ x∈Ω Γ₄-proof)
 
 -- Qualifier-dependent context intersection: for a given q, non-q variables must appear in both contexts, while q variables can appear in only one (in which case they are dropped) or both (in whcih case they are kept)

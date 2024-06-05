@@ -17,18 +17,7 @@ data Type : Set where
   `_`_`×_ : Qualifier → Type → Type → Type
   `_`_⇒_ : (q : Qualifier) → Type → Type → {q ≢ ord}  → Type
 
-data IsBool : Pred Type 0ℓ where
-  isBool : {q : Qualifier} → IsBool ` q `Bool
-
-data IsUnit : Pred Type 0ℓ where
-  isUnit : {q : Qualifier} → IsUnit ` q `Unit
-
-data IsProduct : Pred Type 0ℓ where
-  isProduct : ∀ {q T U} → IsProduct (` q ` T `× U)
-
-data IsArrow : Pred Type 0ℓ where
-  isArrow : ∀ {q T U} {p : q ≢ ord} → IsArrow ((` q ` T ⇒ U) {p})
-
+-- Utilities for matching on certain types 
 bool? :  (ty : Type) → Σ Qualifier (λ q → ` q `Bool ≡ ty) ⊎ (∀ {q : Qualifier} → ` q `Bool ≢ ty)
 bool? ` x `Bool = yes' (x , refl)
 bool? ` x `Unit = no' (λ ())
@@ -62,7 +51,7 @@ qualifierOf (` q ` _ ⇒ _) = q
 ordQualified? : (t : Type) → Dec (qualifierOf t ≡ ord)
 ordQualified? t = qualifierOf t ≟q ord
 
---  somewhat hacky to avoid "I'm not sure" compiler errors
+--  Works around "I'm not sure" compiler errors by providing equality proofs explcitly
 qualifierCases : {A : Set} (ty : Type) → (qualifierOf ty ≡ un → A) → (qualifierOf ty ≡ lin → A) → (qualifierOf ty ≡ ord → A) → (qualifierOf ty ≡ aff → A) → (qualifierOf ty ≡ rel → A) → A
 qualifierCases ` un `Bool u l o a r = u refl
 qualifierCases ` aff `Bool u l o a r = a refl

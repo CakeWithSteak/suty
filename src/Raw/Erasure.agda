@@ -1,6 +1,8 @@
 open import Data.String
 open import Relation.Binary.Definitions
 
+-- Erasing proofs from an enriched term to get a raw term
+
 module Raw.Erasure {abstractName : Set} {_≟ₙ'_ : DecidableEquality abstractName} (eraseAbstractName : abstractName → String) where
 
 open import Raw.Base

@@ -64,16 +64,19 @@ data All (R : REL name V 0ℓ) : Pred (Context V) 0ℓ where
   ∅ : All R ∅
   _,_ : ∀ {x v Γ} (rest : All R Γ) (this : R x v) → All R (Γ , x ↦ v)
 
+-- If relation A implies B, and A holds for all bindings, B also holds for all bindings
 mapAll : {A : REL name V 0ℓ} {B : REL name V 0ℓ} {Γ : Context V} → A ⇒ B → All A Γ → All B Γ
 mapAll impl ∅ = ∅
 mapAll impl (a , this) = mapAll impl a , impl this
 
+-- Decider for all
 all? : {R : REL name V 0ℓ} → Decidable₂ R  → Decidable₁ (All R)
 all? r ∅ = yes ∅
 all? r (Γ , x ↦ v) with all? r Γ
 ... | no ¬a = no λ { (prev , this) → ¬a prev}
 ... | yes prev = case r x v of λ { (no ¬a) → no (λ {(prev , this) → ¬a this}) ; (yes this) → yes (prev , this)}
 
+-- If R holds for all bindings in Γ, and R does not hold for x ↦ v, then x ↦ v ∉ Γ
 ¬all⇒∉ : {R : REL name V 0ℓ} {Γ : Context V} {x : name} {v : V} → All R Γ → ¬ R x v → ¬ (x ↦ v ∈ Γ)
 ¬all⇒∉ (all , this) not-R here = contradiction this not-R
 ¬all⇒∉ (all , this) not-R (there yes-elem) = ¬all⇒∉ all not-R yes-elem
