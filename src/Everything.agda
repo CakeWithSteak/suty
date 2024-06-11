@@ -93,4 +93,8 @@ main = run (List.sequence′ $ intersperse (putStrLn "==========================
                (`if (`let y := `eat ` x ⇒ ` un ` true) then ` un `unit  else ` un `unit)) -- good: relevant var used in condition
           ∷ (`let x := ` rel `unit ⇒
                (`if (` un ` true) then ` un `unit  else ` un `unit)) -- bad: relevant var never used
+          ∷ (` un ƛ p :: ` un `Bool ⇒ (`let x := ` aff `unit ⇒ (`if ` p then `eat ` x else ` un `unit)))
+          ∷ (` un ƛ p :: ` un `Bool ⇒ (`let x := ` lin `unit ⇒ (`if ` p then `eat ` x else `eat ` x)))
+          ∷ (` un ƛ x :: ` ord ` (` ord `Unit) `× (` ord `Bool) ⇒ (`split ` x as a , b ⇒ (`if ` b then `eat ` a else `eat ` a)))
+          ∷ (` un ƛ x :: ` ord ` (` ord `Bool) `× (` ord `Unit) ⇒ (`split ` x as a , b ⇒ (`if ` a then `eat ` b else `eat ` b)))
       ∷ []
